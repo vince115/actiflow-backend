@@ -1,0 +1,130 @@
+# ================================
+# Python
+# ================================
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+.env/
+.env.*
+.venv/
+ENV/
+env/
+pip-wheel-metadata/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Poetry
+poetry.lock
+
+# ================================
+# FastAPI / Uvicorn / Gunicorn
+# ================================
+*.log
+logs/
+*.pid
+
+# ================================
+# Alembic
+# ================================
+alembic/__pycache__/
+alembic/versions/__pycache__/
+alembic/versions/*.pyc
+
+# 移除 alembic 自動產生的 pycache
+alembic/*/*.pyc
+alembic/*/*/*.pyc
+
+# ================================
+# Database
+# ================================
+*.sqlite
+*.sqlite3
+*.db
+*.sql
+*.bak
+
+# PostgreSQL dump files
+*.dump
+*.pgdump
+
+# ================================
+# Docker / Compose
+# ================================
+docker-compose.override.yml
+*.pid
+*.seed
+*.pid.*
+
+# ================================
+# macOS
+# ================================
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Icon must end with two \r
+Icon
+
+# Thumbnails
+._*
+
+# Files that might appear on external disk
+.Spotlight-V100
+.Trashes
+
+# ================================
+# IDE / Editors
+# ================================
+# VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/tasks.json
+
+# JetBrains (PyCharm)
+.idea/
+
+# ================================
+# dotenv
+# ================================
+.env
+*.env
+.env.*
+.envrc
+
+# ================================
+# Test / Coverage
+# ================================
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+pytest_cache/
+.pytest_cache/
+
+# ================================
+# Node toolings (如果有前端)
+# ================================
+node_modules/
+dist/
+build/
+
+# ================================
+# Temporary files
+# ================================
+*.tmp
+*.temp
+*.swp
+*.swo
+
+# ================================
+# Misc
+# ================================
+*.orig
+*.rej
+*.bak
+
