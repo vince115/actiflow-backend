@@ -56,7 +56,7 @@ def create_submission(
         user_uuid=data.user_uuid,
         status=data.status or "pending",
         notes=data.notes,
-        metadata=data.metadata or {},
+        extra_data=data.extra_data or {},
 
         created_by=creator_uuid,
         created_by_role=creator_role,
@@ -219,7 +219,7 @@ def update_submission(
     if not submission:
         return None
 
-    UPDATABLE_FIELDS = {"notes", "metadata", "status", "status_reason"}
+    UPDATABLE_FIELDS = {"notes", "extra_data", "status", "status_reason"}
 
     for key, value in data.model_dump(exclude_unset=True).items():
         if key in UPDATABLE_FIELDS:

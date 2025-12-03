@@ -58,7 +58,7 @@ class Submission(BaseModel, Base):
     )
 
     # metadata (统一名称)
-    metadata = Column(JSONB, default=lambda: {})
+    extra_data = Column(JSONB, default=dict)
 
     # 一筆 submission 對應多個欄位值
     values = relationship(

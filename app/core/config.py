@@ -1,7 +1,7 @@
 # app/core/config.py
-from pydantic_settings import BaseSettings
-from pydantic import field_validator
 from functools import lru_cache
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import field_validator
 
 
 class Settings(BaseSettings):
@@ -27,9 +27,11 @@ class Settings(BaseSettings):
             return [i.strip() for i in v.split(",")]
         return v
 
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
+    # ⭐ pydantic-settings v2 的設定寫法
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+    )
 
 
 @lru_cache()

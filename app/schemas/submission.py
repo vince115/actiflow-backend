@@ -21,7 +21,7 @@ class SubmissionBase(BaseModel):
 
     ip_address: Optional[str] = None
     user_agent: Optional[str] = None
-    metadata: Dict[str, Any] = {}
+    extra_data: Dict[str, Any] = {}
 
     is_active: bool = True
     is_deleted: bool = False
@@ -60,7 +60,7 @@ class SubmissionCreate(BaseModel):
 
     status: Optional[str] = "pending"
     notes: Optional[str] = None
-    metadata: Optional[Dict[str, Any]] = None
+    extra_data: Optional[Dict[str, Any]] = None
 
     created_by: Optional[str] = None
     created_by_role: Optional[str] = None
@@ -73,7 +73,7 @@ class SubmissionUpdate(BaseModel):
     status: Optional[str] = None
     status_reason: Optional[str] = None
     notes: Optional[str] = None
-    metadata: Optional[Dict[str, Any]] = None
+    extra_data: Optional[Dict[str, Any]] = None
 
 
 # ------------------------------------------------------------

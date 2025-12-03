@@ -6,7 +6,6 @@ from sqlalchemy.orm import Session
 
 from app.core.db import get_db
 from app.core.jwt import decode_access_token
-from app.core.security import verify_token  # 如果沒用，可以等一下順便刪掉
 from app.crud.user import get_user_by_uuid
 from app.crud.super_admin import get_super_admin_by_uuid
 from app.crud.organizer_membership import get_membership

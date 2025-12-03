@@ -1,33 +1,37 @@
 # app/core/db.py
 
-import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base, Session
+from app.core.config import settings
 
 # ---------------------------------------------------------
 # Database URL (sync)
 # ---------------------------------------------------------
-DATABASE_URL = os.getenv("DATABASE_URL")
+DATABASE_URL = settings.DATABASE_URL
+
+if not DATABASE_URL:
+    raise RuntimeError("❌ DATABASE_URL is missing! Check your .env file.")
 
 # ---------------------------------------------------------
 # Sync Engine（FastAPI CRUD 與 Alembic 使用）
 # ---------------------------------------------------------
-engine = create_engine(DATABASE_URL, echo=False)
+engine = create_engine(
+    DATABASE_URL,
+    echo=False,
+    future=True,
+    pool_pre_ping=True,
+)
 
 SessionLocal = sessionmaker(
     bind=engine,
     autocommit=False,
     autoflush=False,
+    future=True,
 )
 
-# ---------------------------------------------------------
-# Base for Models
-# ---------------------------------------------------------
 Base = declarative_base()
 
-# ---------------------------------------------------------
-# FastAPI dependency - 標準命名 get_db()
-# ---------------------------------------------------------
+
 def get_db():
     db: Session = SessionLocal()
     try:
