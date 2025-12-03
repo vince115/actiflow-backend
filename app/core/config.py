@@ -1,0 +1,40 @@
+# app/core/config.py
+from pydantic_settings import BaseSettings
+from pydantic import field_validator
+from functools import lru_cache
+
+
+class Settings(BaseSettings):
+    # === App Metadata ===
+    APP_NAME: str = "ActiFlow Backend"
+    VERSION: str = "0.1.0"
+    ENV: str = "dev"  # dev / prod / staging
+
+    # === JWT ===
+    JWT_SECRET: str = "change_me_please"
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+
+    # === Database ===
+    DATABASE_URL: str = ""
+
+    # === CORS ===
+    BACKEND_CORS_ORIGINS: list[str] = ["*"]
+
+    @field_validator("BACKEND_CORS_ORIGINS", mode="before")
+    def split_cors(cls, v):
+        if isinstance(v, str):
+            return [i.strip() for i in v.split(",")]
+        return v
+
+    class Config:
+        env_file = ".env"
+        env_file_encoding = "utf-8"
+
+
+@lru_cache()
+def get_settings():
+    return Settings()
+
+
+settings = get_settings()
