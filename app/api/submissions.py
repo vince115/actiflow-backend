@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.db import get_db
 from app.core.dependencies import get_current_user
 
+from app.models.submission import Submission
 from app.schemas.submission import (
     SubmissionCreate,
     SubmissionUpdate,
@@ -15,7 +16,6 @@ from app.schemas.submission import (
 from app.crud.submission import (
     create_submission,
     get_submission_by_code,
-    update_submission_data,
     update_submission_status,
     soft_delete_submission,
 )
@@ -26,9 +26,14 @@ router = APIRouter(prefix="/submissions", tags=["Submissions"])
 # -------------------------------------------------------
 # 1. 列出所有 Submission（可加上管理用途）
 # -------------------------------------------------------
+
 @router.get("/", response_model=list[SubmissionResponse])
 def get_submissions(db: Session = Depends(get_db)):
-    submissions = db.query(Submission).filter(Submission.is_deleted == False).all()
+    submissions = (
+        db.query(Submission)
+        .filter(Submission.is_deleted == False)
+        .all()
+    )
     return submissions
 
 
