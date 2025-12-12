@@ -1,0 +1,1 @@
+# app/schemas/membership_application/membership_application_response.py
