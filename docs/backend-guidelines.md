@@ -1,231 +1,394 @@
-# ActiFlow Backend 開發守則 v1
+# **ActiFlow Backend 開發守則 v2
 
-本文件定義 ActiFlow Backend 的後端開發規範，包含資料模型、Schema、CRUD、Router、RBAC 權限規則與程式風格。  
-所有後續開發、修改、重構請一律遵守本守則，以維持專案結構一致性。
+（完整正式版 / 2025-12 最新架構）**
 
----
+本文件定義 ActiFlow Backend 的開發規範，用於維護 API 架構一致性、資料模型完整性、RBAC 行為統一性，以及 router / CRUD / schema 的標準命名方式。
 
-## 0. 使用方式（給開發者＋給 ChatGPT）
+所有後端開發必須遵守本文件。
 
-每次需要讓 AI 協助修改後端程式時，建議加上：
+## #️⃣ 1. Backend 技術架構（Tech Stack）
 
-> 請嚴格依照「ActiFlow Backend 開發守則」產生 / 修改程式碼，欄位命名、schema、model、CRUD、router 都要保持一致。
+| 類別 | 工具 |
+| ---------- | ---------- |
+| Framework | FastAPI |
+| ORM | SQLAlchemy 2.0 |
+| DB | PostgreSQL（Neon） |
+| Migrations | Alembic |
+| Schema | Pydantic v2 |
+| Auth | Cookie-Based JWT（HttpOnly） |
+| RBAC | Decorator-based（require_xxx_role） |
+| Deployment  | Docker / Cloud Run |
 
----
+## #️⃣ 2. 目錄結構（必須遵循 DDD Domain-Based）
+```pgsql
+app/
+  api/
+    activities/
+    admin/
+    applications/
+    auth/
+    events/
+    organizers/
+    submissions/
+    system/
+    users/
+    utils/
+    router.py         ← ⭐ 全域路由匯總
 
-## 1. 專案架構原則
+  core/
+    config.py
+    db.py
+    dependencies.py
+    jwt.py
+    security.py
+    rbac.py
+    exceptions.py
 
-### Backend Stack
-- **FastAPI**
-- **SQLAlchemy**
-- **Alembic**
-- **PostgreSQL**
-- **Pydantic v2**
-- **主體實體**
-  - User（一般使用者 / 平台帳號）
-  - SuperAdmin（平台 root）
-  - SystemMembership（platform-level 權限：system_admin / support / auditor）
-  - Organizer（主辦單位）
-  - OrganizerMembership（organizer-level 角色：owner / admin / member）
-  - ActivityTemplate / Event / Submission / SubmissionValue（之後的活動與表單）
-- **分層原則**
-  - models/：只放資料庫結構 + relationship，不放商業邏輯
-  - schemas/：Pydantic 定義 API 收入/輸出
-  - crud/：資料存取（CRUD），不放權限、業務判斷
-  - core/：config、db、jwt、security、dependencies（權限依賴）
-  - api/：router，每個領域有自己的檔案 / 目錄
+  models/
+    activity/
+    auth/
+    base/
+    event/
+    membership/
+    organizer/
+    platform/
+    submission/
+    user/
 
----
+  schemas/
+    activity/
+    auth/
+    event/
+    membership/
+    organizer/
+    platform/
+    submission/
+    user/
+    shared/
 
-## 2. SQLAlchemy Model 規則
+  crud/
+    activity/
+    auth/
+    event/
+    membership/
+    organizer/
+    submission/
+    user/
+    platform/
 
-### 2.1 Table / Model 命名
-- Table：**複數 snake_case**
-  - `users`, `organizers`, `system_memberships`
-- Model：**單數 PascalCase**
-  - `User`, `Organizer`, `SystemMembership`
-
-### 2.2 必備共用欄位（BaseModel）
-
-所有主表 Model 需繼承 `BaseModel`（專案既有），包含：
-
-- id: int PK
-- uuid: str API 對外主鍵
-- is_active: bool = True
-- is_deleted: bool = False
-- created_at, updated_at, deleted_at
-- created_at, updated_at, deleted_at: DateTime
-- created_by, updated_by, deleted_by: String (通常存 user.uuid 或 super_admin.uuid)
-- created_by_role, updated_by_role, deleted_by_role: String，例如：
-  - "super_admin", "system_admin", "organizer", "user"
-
-👉 規則：只要是業務主表，都應該繼承 BaseModel，沿用這組欄位。
-
-❗ **Model 務必保持一致，不得自行新增不同命名風格的欄位。**
-
----
-
-## 3. Pydantic Schema 規範
-
-以 `User` 為例：
-
-- `UserBase`：回傳共用欄位
-- `UserCreate`：新增使用欄位，不含 uuid / timestamps
-- `UserUpdate`：部分更新。所有欄位 Optional
-- `UserResponse`：回傳型態（繼承 Base）
-
-### Schema 命名規則（所有 Model 都遵循）
-- XBase
-- XCreate
-- XUpdate
-- XResponse
-
-### 密碼欄位規則
-- `password_hash` **不得出現在任何 Response schema**
-- `password` / `old_password` / `new_password` 才是 API 使用欄位
-
----
-
-## 4. CRUD 規則（app/crud/*.py）
-
-CRUD 僅負責資料存取，不處理權限邏輯。
-
-### CRUD 函式命名
-- create_xxx(db, data)
-- get_xxx_by_uuid(db, uuid)
-- list_xxx(db, skip, limit)
-- update_xxx(db, uuid, data)
-- soft_delete_xxx(db, uuid)
-
-
-
-### 特殊管理功能（只供 super_admin）
-```shell
-force_reset_password(db, uuid, new_password)
-disable_user_account(db, uuid)
+  utils/
+    logging.py
+    email.py
 ```
 
-❗ **CRUD 不做權限判斷，不處理登入者資訊。**
+## #️⃣ 3. Model 規範（SQLAlchemy）
 
----
+所有主資料表 必須繼承 BaseModel（企業級審計欄位）：
 
-## 5. Router 規則（app/api）
+### ✔ BaseModel 必含欄位：
+```python
+id
+uuid
+is_active
+is_deleted
 
-### Router 檔案結構
-- app/api/auth/user_auth.py → /auth/users
-- app/api/auth/organizer_auth.py → /auth/organizers
-- app/api/auth/super_admin_auth.py → /auth/super-admin
-- app/api/admin/super_admin_tools.py → /admin/super-tools
-- app/api/system/system_users.py → /system/users
+created_at
+updated_at
+deleted_at
 
+created_by
+updated_by
+deleted_by
 
-### 常見路由
-#### User Auth：
-- POST /auth/users/register
-- POST /auth/users/login
-- GET /auth/users/me
-- PUT /auth/users/me
-- POST /auth/users/change-password
+created_by_role
+updated_by_role
+deleted_by_role
+```
+### ✔ 命名規則
+| 類型	| 命名 |
+| ---------- | ---------- |
+| 主表	| activity_template.py, event.py, submission.py
+| 附表	| activity_template_field.py, event_ticket.py
 
-#### Super Admin Tools：
-- POST /admin/super-tools/users/{uuid}/force-reset-password
-- POST /admin/super-tools/users/{uuid}/disable
+### ❌ 禁止
 
----
+不可將 Activity 與 Event 放同一資料夾
 
-## 6. RBAC 權限規則（dependencies.py）
+不可出現 business logic
 
-ActiFlow 使用三層 RBAC：
+## #️⃣ 4. Schema 命名規範（Pydantic v2）
 
-1. **平台等級（SystemMembership）**  
-   - system_admin  
-   - support  
-   - auditor  
+所有 Schema 必須由以下四組構成：
 
-2. **主辦單位等級（OrganizerMembership）**  
-   - owner  
-   - admin  
-   - member  
+| Schema | 用途 |
+| ---------- | ---------- |
+| XBase | 共用欄位（R/O） |
+| XCreate | 建立用 |
+| XUpdate | 部分更新 |
+| XResponse | 回傳用（不可含密碼相關欄位） |
 
-3. **Super Admin（root）**
+### ✔ Schema Example（必須遵守）
+```python
+class UserBase(BaseModel):
+    uuid: UUID
+    name: str
+    email: EmailStr
 
-所有權限檢查集中在 `app/core/dependencies.py`。
+class UserCreate(BaseModel):
+    name: str
+    email: EmailStr
+    password: str
 
-### 6.1 Current User
+class UserUpdate(BaseModel):
+    name: Optional[str]
+    email: Optional[EmailStr]
 
-```py
-def get_current_user(...)
+class UserResponse(UserBase):
+    created_at: datetime
 ```
 
-### 6.2 SuperAdmin 專用
-```py
-def get_current_super_admin(...)
-```
+### ❌ 禁止
 
-### 6.3 Platform-level
-```py
-def get_current_platform_user
-def get_current_system_admin
-def get_current_support
-def get_current_auditor
-```
+password_hash 不能出現在任何 Response
 
-### 6.4 Organizer-level (factory)
-```py
-def get_current_organizer_admin_factory()
-```
+混合使用 Create/Update 在同檔案
 
-使用方式：
+## #️⃣ 5. CRUD 規範（資料存取層）
 
-```py
-@router.get("/organizers/{organizer_uuid}/xxx")
-def list_items(
-    organizer_uuid: str,
-    admin = Depends(get_current_organizer_admin_factory())
-):
-```
+CRUD 層 禁止放置任何 RBAC / Auth / Router Logic。
 
-### 7. Error Handling 規則
-> 400 Bad Request
-  - Email 重複
-  - 密碼錯誤
-  - 帳號需用第三方登入
-
-> 401 Unauthorized
-  - Token 遺失或無效
-  - token 缺少 sub
-
-> 403 Forbidden
-  - 權限不足
-  - 非 owner/admin 嘗試操作 organizer
-
-> 404 Not Found
-  - User / Organizer / Event 不存在
-
-### 8. Alembic 規則
-不得修改舊 Migration
-如需更動 DB 結構 → 新增 migration：
-
+每個 domain 拆分成多檔案，如：
 ```bash
-alembic revision --autogenerate -m "add event fields"
+crud/activity/activity.py
+crud/activity/activity_template.py
+crud/activity/activity_template_field.py
+```
+
+### ✔ CRUD 函式命名規則
+```nginx
+create_xxx
+get_xxx_by_uuid
+get_xxx_by_email
+list_xxx
+update_xxx
+soft_delete_xxx
+```
+
+### SuperAdmin 專用（只在 user CRUD）
+
+```nginx
+force_reset_password
+disable_user_account
+```
+
+## #️⃣ 6. Router 規範（API Domain 分層）
+
+ActiFlow 採用 Domain-Based Router + Multi-Role Endpoints。
+
+### Router 目錄規範（必須遵循）：
+```pgsql
+api/
+  activities/
+  events/
+  organizers/
+  submissions/
+  applications/
+  admin/
+  system/
+  auth/
+  users/
+  utils/
+```
+
+### API 必須分 4 類 Role：
+
+| 類型 | 目錄 | 說明 |
+| ---------- | ---------- | ---------- |
+| public | events_public.py / submissions_public.py | 使用者可瀏覽 |
+| organizer | events_organizer.py | 主辦單位後台 |
+| admin | admin/ | 平台管理後台 |
+| system | system/ | 超級管理員 |
+
+### ✔ 禁止的舊檔案（必須刪除）
+```nginx
+user_auth.py
+organizer_auth.py
+super_admin_auth.py
+system_auth.py
+```
+
+## #️⃣ 7. 新版 Auth 規範（Cookie-Based JWT）
+
+### ✔ 採用 HttpOnly Cookies：
+|Cookie|用途|
+|----------|----------| 
+|access_token|15–30 分鐘存活|
+|refresh_token|7–14 天存活|
+
+### ✔ 4 個 Auth API（必須存在）
+|路由|	說明|
+|----------|----------| 
+|POST /auth/login|登入（設置 cookies）|
+|POST /auth/refresh|更新 access token|
+|GET /auth/me|取得當前使用者|
+|POST /auth/logout|清除 cookies|
+
+### ❌ 禁止使用：
+
+- OAuth2PasswordBearer
+- Authorization: Bearer <token>
+
+## #️⃣ 8. RBAC（新版 Role-Based Access Control）
+
+ActiFlow 採用 decorator RBAC（建議方式）：
+
+```python
+@require_super_admin
+@require_platform_role("system_admin")
+@require_organizer_role(["owner", "admin"])
+```
+
+
+Base dependency：
+```python
+current_user = Depends(get_current_user)
+```
+
+### ✔ 不再使用：
+```python
+get_current_super_admin()
+get_current_system_admin()
+get_current_organizer_admin_factory()
+```
+
+## #️⃣ 9. Router / Prefix / Tags 規範
+
+### ✔ Tags 必須依 Domain：
+
+例：
+
+```python
+router = APIRouter(prefix="/events", tags=["Events"])
+```
+
+### ✔ 正式 endpoint 不得使用 /debug
+Debug endpoint 改為：
+ 
+```swift
+api/utils/debug.py
+router = APIRouter(prefix="/debug", tags=["Debug"], include_in_schema=False)
+```
+
+
+並且：
+- 必須限制環境（DEV only）
+- 上線時自動關閉
+
+## #️⃣ 10. 錯誤回應規範
+| HTTP Code	| 用法 |
+|----------|----------| 
+| 400	| 格式錯誤 / 驗證失敗 |
+| 401	| 未登入 / Cookie 遺失 |
+| 403	| 權限不足 |
+| 404	| 資料不存在 |
+| 409	| 重複建立（email、活動名稱等） |
+
+## #️⃣ 11. Alembic 規範
+### ✔ Migration 只能新增不可修改
+
+```python
+alembic revision -m "add event fields"
 alembic upgrade head
 ```
 
-### 9. Commit / Branch 命名建議
-```makefile
+### ❌ 禁止
 
-feat: add organizer auth
-fix: system admin dependency
-refactor: extract dependencies for RBAC
-chore: update .gitignore
+修改已存在的 migration（會破壞 production 資料庫）
+
+## #️⃣ 12. Git Commit 規範（必須遵守）
+
+| Type	| Description |
+|----------|----------| 
+| feat	| 新功能 |
+| fix	| 修复 bug |
+| refactor	| 重构代码 |
+| chore	| 构建过程或辅助工具的变动 |
+
+例：
+
+```python
+feat: add activity template CRUD
+fix: correct refresh token expiry logic
+refactor: unify RBAC decorators
+chore: cleanup old auth handlers
 ```
 
-### 10. 三句最重要的守則
-- ① 所有 Model 必須繼承 BaseModel，保持相同欄位（uuid / is_active / timestamps / created_by...）
-- ② Schema 必須依照 Base / Create / Update / Response 命名，回傳絕不包含 password_hash
-- ③ 任何權限檢查都必須使用 dependencies.py，不得在 router 裡自行寫 if 判斷
+## #️⃣ 13. 最重要的三點（請背下）
 
+### ① Auth 改為 Cookie-Based，不能出現 Bearer Token
 
-（完）
+### ② RBAC 採 decorator，不使用 old get_current_xxx
 
+### ③ Model / Schema / CRUD / Router 必須依規範命名與分類
 
+## #️⃣ 14. 附錄：最終版 API Folder 樹狀圖（精簡）
+
+```markdown
+api/
+  activities/
+    activity_templates.py
+    activity_template_fields.py
+    activity_types.py
+
+  events/
+    events_public.py
+    events_organizer.py
+    events_admin.py
+    event_fields.py
+    event_template_fields.py
+
+  organizers/
+    organizers_public.py
+    organizers_admin.py
+    organizer_members.py
+    organizer_events.py
+
+  submissions/
+    submissions_public.py
+    submissions_organizer.py
+    submissions_admin.py
+    submission_values.py
+
+  applications/
+    organizer_applications_public.py
+    organizer_applications_admin.py
+
+  auth/
+    login.py
+    refresh.py
+    logout.py
+    me.py
+
+  admin/
+    organizers.py
+    events.py
+    submissions.py
+    system_settings.py
+    users.py
+    tools.py
+
+  system/
+    system_auth.py
+    system_users.py
+    system_memberships.py
+    organizer_approval.py
+
+  users/
+    users_public.py
+
+  utils/
+    debug.py
+
+  router.py
+```
+### 🎉 Done!

@@ -5,8 +5,8 @@ from sqlalchemy.orm import Session
 
 from app.core.db import get_db
 from app.core.dependencies import get_current_super_admin
-from app.schemas.user import UserResponse, UserUpdate
-from app.crud.user import (
+from app.schemas.user.user import UserResponse, UserUpdate
+from crud.user.user import (
     list_users,
     get_user_by_uuid,
     update_user,

@@ -5,8 +5,8 @@ from sqlalchemy.orm import Session
 
 from app.core.db import get_db
 from app.core.dependencies import get_current_super_admin
-from app.schemas.super_admin import SuperAdminResponse, SuperAdminCreate
-from app.crud.super_admin import (
+from app.schemas.platform.super_admin import SuperAdminResponse, SuperAdminCreate
+from app.crud.platform.super_admin import (
     create_super_admin,
     list_super_admins,
     update_super_admin_role,

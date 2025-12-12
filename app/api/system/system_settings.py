@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.core.db import get_db
 from app.core.dependencies import get_current_super_admin
-from app.schemas.settings import SystemSettingsResponse, SystemSettingsUpdate
+from app.schemas.user.settings import SystemSettingsResponse, SystemSettingsUpdate
 from app.crud.settings import get_system_settings, update_system_settings
 
 router = APIRouter(prefix="/system/settings", tags=["System Settings"])

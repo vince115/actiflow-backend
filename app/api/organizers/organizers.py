@@ -1,102 +1,129 @@
 # app/api/organizers/organizers.py
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
-from app.core.dependencies import (
-    get_current_user,
-    get_current_system_admin,
-)
-
-from app.schemas.organizer import (
-    OrganizerCreate,
-    OrganizerUpdate,
-    OrganizerResponse,
-)
-
-from app.crud.organizer import (
+from app.schemas.organizer.organizer import OrganizerCreate, OrganizerUpdate, OrganizerResponse
+from crud.organizer.organizer import (
     create_organizer,
-    update_organizer,
-    list_organizers,
     get_organizer_by_uuid,
+    list_organizers,
+    update_organizer as update_org_in_db,
 )
+from crud.membership.organizer_membership import get_membership, get_user_memberships
+from crud.membership.system_membership import get_system_membership
+from app.core.dependencies import get_current_user
 
-router = APIRouter(
-    prefix="/organizers",
-    tags=["Organizers"],
-)
 
-# ============================================================
-# 1. 建立 Organizer（⚠ 一般使用者不能直接建立）
-#    → System Admin 用的
-#    → 使用者使用「申請」流程在 organizer_apply.py
-# ============================================================
+router = APIRouter(prefix="/organizers", tags=["Organizers"])
+
+
+# -------------------------------------------------------------------
+# Utility: Check system_admin
+# -------------------------------------------------------------------
+def require_system_admin(user, db: Session):
+    membership = get_system_membership(db, user.uuid)
+    if not membership or membership.role != "system_admin":
+        raise HTTPException(403, "System admin permission required")
+
+
+# -------------------------------------------------------------------
+# Utility: Check organizer_owner/admin
+# -------------------------------------------------------------------
+def require_organizer_admin(user, organizer_uuid: str, db: Session):
+    mem = get_membership(db, user.uuid, organizer_uuid)
+
+    if not mem:
+        raise HTTPException(403, "You are not a member of this organizer")
+
+    if mem.role not in ["owner", "admin"]:
+        raise HTTPException(403, "Organizer admin or owner permission required")
+
+
+# -------------------------------------------------------------------
+# Create Organizer  (system_admin only)
+# -------------------------------------------------------------------
 @router.post("/", response_model=OrganizerResponse)
 def create_new_organizer(
     data: OrganizerCreate,
     db: Session = Depends(get_db),
-    _admin = Depends(get_current_system_admin)
+    current_user=Depends(get_current_user)
 ):
+    require_system_admin(current_user, db)
     organizer = create_organizer(db, data)
     return organizer
 
 
-# ============================================================
-# 2. 讀取單一 Organizer (所有登入者可查看)
-# ============================================================
-@router.get("/{uuid}", response_model=OrganizerResponse)
-def get_single_organizer(
-    uuid: str,
+# -------------------------------------------------------------------
+# Update Organizer （owner/admin OR system_admin）
+# -------------------------------------------------------------------
+@router.put("/{organizer_uuid}", response_model=OrganizerResponse)
+def update_organizer_info(
+    organizer_uuid: str,
+    data: OrganizerUpdate,
     db: Session = Depends(get_db),
-    _user = Depends(get_current_user)
+    current_user=Depends(get_current_user)
 ):
-    organizer = get_organizer_by_uuid(db, uuid)
+
+    organizer = get_organizer_by_uuid(db, organizer_uuid)
     if not organizer or organizer.is_deleted:
         raise HTTPException(404, "Organizer not found")
 
-    return organizer
+    system_mem = get_system_membership(db, current_user.uuid)
+    if system_mem and system_mem.role == "system_admin":
+        return update_org_in_db(db, organizer_uuid, data)
+
+    require_organizer_admin(current_user, organizer_uuid, db)
+
+    return update_org_in_db(db, organizer_uuid, data)
 
 
-# ============================================================
-# 3. 查詢所有 Organizer（system_admin 限定）
-# ============================================================
-@router.get("/", response_model=list[OrganizerResponse])
-def list_all_organizers(
-    q: str | None = Query(None, description="搜尋名稱"),
-    status: str | None = Query(None, description="狀態過濾"),
-    skip: int = 0,
-    limit: int = 50,
+# -------------------------------------------------------------------
+# Get Organizer
+# -------------------------------------------------------------------
+@router.get("/{organizer_uuid}", response_model=OrganizerResponse)
+def get_single_organizer(
+    organizer_uuid: str,
     db: Session = Depends(get_db),
-    _admin = Depends(get_current_system_admin)
+    current_user=Depends(get_current_user)
 ):
-    organizers = list_organizers(db, skip=skip, limit=limit)
+    organizer = get_organizer_by_uuid(db, organizer_uuid)
 
-    # 搜尋
-    if q:
-        q_lower = q.lower()
-        organizers = [o for o in organizers if o.name and q_lower in o.name.lower()]
-
-    # 狀態過濾
-    if status:
-        organizers = [o for o in organizers if o.status == status]
-
-    return organizers
-
-
-# ============================================================
-# 4. 修改 Organizer（system_admin 限定）
-# ============================================================
-@router.put("/{uuid}", response_model=OrganizerResponse)
-def update_organizer_detail(
-    uuid: str,
-    data: OrganizerUpdate,
-    db: Session = Depends(get_db),
-    _admin = Depends(get_current_system_admin)
-):
-    organizer = update_organizer(db, uuid, data)
-
-    if not organizer:
+    if not organizer or organizer.is_deleted:
         raise HTTPException(404, "Organizer not found")
 
+    system_mem = get_system_membership(db, current_user.uuid)
+    if system_mem and system_mem.role == "system_admin":
+        return organizer
+
+    mem = get_membership(db, current_user.uuid, organizer_uuid)
+    if not mem:
+        raise HTTPException(403, "You don't have permission to view this organizer")
+
     return organizer
+
+
+# -------------------------------------------------------------------
+# List Organizers
+# -------------------------------------------------------------------
+@router.get("/", response_model=list[OrganizerResponse])
+def list_all_organizers(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    system_mem = get_system_membership(db, current_user.uuid)
+
+    if system_mem and system_mem.role == "system_admin":
+        return list_organizers(db)
+
+    memberships = get_user_memberships(db, current_user.uuid)
+
+    organizer_ids = {m.organizer_uuid for m in memberships}
+
+    return [
+        org
+        for org_uuid in organizer_ids
+        if (org := get_organizer_by_uuid(db, org_uuid))
+        and not org.is_deleted
+    ]

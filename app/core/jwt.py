@@ -1,4 +1,4 @@
-# app/core/jwt.py
+# app/core/jwt.py  ← JWT 產生、驗證
 
 from datetime import datetime, timedelta, timezone
 from jose import jwt, JWTError, ExpiredSignatureError

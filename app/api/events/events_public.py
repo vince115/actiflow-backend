@@ -5,14 +5,14 @@ from sqlalchemy.orm import Session
 
 from app.core.db import get_db
 
-from app.schemas.event import EventResponse
-from app.schemas.event_field import EventFieldResponse
+from app.schemas.event.event import EventResponse
+from app.schemas.event.event_field_base import EventFieldResponse
 
-from app.crud.event import (
+from crud.event.event import (
     get_event_by_uuid,
     list_public_events,
 )
-from app.crud.event_field import list_public_event_fields
+from crud.event.event_field import list_public_event_fields
 
 
 router = APIRouter(

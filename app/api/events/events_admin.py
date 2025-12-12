@@ -6,22 +6,22 @@ from uuid import UUID
 from app.core.db import get_db
 from app.core.dependencies import get_current_super_admin
 
-from app.schemas.event import (
+from app.schemas.event.event import (
     EventCreate,
     EventUpdate,
     EventResponse
 )
-from app.schemas.event_field import EventFieldResponse
-from app.schemas.common import DeleteResponse   # ← 建議新增通用 schema
+from app.schemas.event.event_field_base import EventFieldResponse
+from app.schemas.shared.common import DeleteResponse   # ← 建議新增通用 schema
 
-from app.crud.event import (
+from crud.event.event import (
     create_event,
     get_event_by_uuid,
     list_events,
     update_event,
     soft_delete_event,
 )
-from app.crud.event_field import list_event_fields
+from crud.event.event_field import list_event_fields
 
 
 router = APIRouter(

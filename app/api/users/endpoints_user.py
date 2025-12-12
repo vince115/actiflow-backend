@@ -7,19 +7,16 @@ from typing import Optional, List
 from app.core.db import get_db
 from app.core.security import verify_password, hash_password
 from app.core.jwt import create_access_token
-from app.core.dependencies import (
-    get_current_user,
-    get_current_system_admin
-)
+from app.core.dependencies import get_current_user
 
-from app.schemas.user import (
+from app.schemas.user.user import (
     UserCreate,
     UserLogin,
     UserUpdate,
     UserResponse,
     UserLoginResponse
 )
-from app.crud.user import (
+from crud.user.user import (
     create_user,
     list_users,
     get_user_by_email,
@@ -46,7 +43,7 @@ def register_user(data: UserCreate, db: Session = Depends(get_db)):
         raise HTTPException(400, "Email already registered")
 
     user = create_user(db, data)
-    return UserResponse.from_orm(user)
+    return UserResponse.model_validate(user)
 
 
 # ------------------------------------------------------------
@@ -70,7 +67,7 @@ def login_user(data: UserLogin, db: Session = Depends(get_db)):
     return {
         "access_token": token,
         "token_type": "bearer",
-        "user": UserResponse.from_orm(user),
+        "user": UserResponse.model_validate(user),
     }
 
 
@@ -79,7 +76,7 @@ def login_user(data: UserLogin, db: Session = Depends(get_db)):
 # ------------------------------------------------------------
 @router.get("/me", response_model=UserResponse)
 def get_me(current_user=Depends(get_current_user)):
-    return UserResponse.from_orm(current_user)
+    return UserResponse.model_validate(current_user)
 
 
 # ------------------------------------------------------------
@@ -92,7 +89,7 @@ def update_me(
     current_user=Depends(get_current_user)
 ):
     updated_user = update_user(db, current_user.uuid, data)
-    return UserResponse.from_orm(updated_user)
+    return UserResponse.model_validate(updated_user)
 
 
 # ------------------------------------------------------------
@@ -115,8 +112,12 @@ def change_password(
 
 # ============================================================
 # 系統管理員區（system_admin 才能操作）
-# Admin-level Operations (system_admin)
 # ============================================================
+
+def assert_system_admin(user):
+    if user.role != "system_admin":
+        raise HTTPException(403, "Only system_admin can perform this action")
+    
 # ------------------------------------------------------------
 # 6. 建立使用者（後台專用）
 # ------------------------------------------------------------
@@ -124,12 +125,15 @@ def change_password(
 def create_new_user(
     data: UserCreate,
     db: Session = Depends(get_db),
-    _admin=Depends(get_current_system_admin)
+    user = Depends(get_current_user)
 ):
+    assert_system_admin(user)
+
     return create_user(db, data)
 
+
 # ------------------------------------------------------------
-# 7. 管理員查看全部使用者（含搜尋） List all users (system_admin)
+# 7. 管理員查看全部使用者（含搜尋）
 # ------------------------------------------------------------
 @router.get("/", response_model=List[UserResponse])
 def list_all_users(
@@ -137,11 +141,12 @@ def list_all_users(
     skip: int = 0,
     limit: int = 50,
     db: Session = Depends(get_db),
-    _admin=Depends(get_current_system_admin)
+    user = Depends(get_current_user)
 ):
+    assert_system_admin(user)
+
     users = list_users(db, skip=skip, limit=limit)
 
-    # 若有搜尋字串 → 過濾
     if q:
         q_lower = q.lower()
         users = [
@@ -156,18 +161,21 @@ def list_all_users(
     return users
 
 # ------------------------------------------------------------
-#  8. 管理員讀取使用者 Get single user (system_admin)
+# 8. 管理員讀取使用者
 # ------------------------------------------------------------
 @router.get("/{user_uuid}", response_model=UserResponse)
 def get_single_user(
     user_uuid: str,
     db: Session = Depends(get_db),
-    _admin=Depends(get_current_system_admin)
+    user = Depends(get_current_user)
 ):
-    user = get_user_by_uuid(db, user_uuid)
-    if not user or user.is_deleted:
+    assert_system_admin(user)
+
+    target = get_user_by_uuid(db, user_uuid)
+    if not target or target.is_deleted:
         raise HTTPException(404, "User not found")
-    return UserResponse.from_orm(user)
+    return UserResponse.model_validate(target)
+
 
 # ------------------------------------------------------------
 # 9. 管理員更新使用者 Update user (system_admin)
@@ -177,12 +185,14 @@ def update_user_detail(
     user_uuid: str,
     data: UserUpdate,
     db: Session = Depends(get_db),
-    _admin=Depends(get_current_system_admin)
+    user = Depends(get_current_user)
 ):
+    assert_system_admin(user)
+
     user = update_user(db, user_uuid, data)
     if not user:
         raise HTTPException(404, "User not found")
-    return UserResponse.from_orm(user)
+    return UserResponse.model_validate(user)
 
 # ------------------------------------------------------------
 # 10. 管理員軟刪除使用者 Soft delete user (system_admin)
@@ -191,8 +201,10 @@ def update_user_detail(
 def delete_user(
     user_uuid: str,
     db: Session = Depends(get_db),
-    _admin=Depends(get_current_system_admin)
+    user = Depends(get_current_user)
 ):
+    assert_system_admin(user)
+
     deleted = soft_delete_user(db, user_uuid)
     if not deleted:
         raise HTTPException(404, "User not found")

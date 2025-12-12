@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.db import get_db
 from app.core.dependencies import get_current_super_admin
 
-from app.crud.submission import (
+from crud.submission.submission import (
     get_submission_by_uuid,
     list_submissions_by_event,
     update_submission,
@@ -14,7 +14,7 @@ from app.crud.submission import (
     soft_delete_submission,
 )
 
-from app.schemas.submission import (
+from app.schemas.submission.submission import (
     SubmissionUpdate,
     SubmissionStatusUpdate,
     SubmissionResponse,

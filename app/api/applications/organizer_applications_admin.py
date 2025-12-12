@@ -4,14 +4,13 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
-from app.core.dependencies import get_current_system_admin
-
-from app.schemas.organizer_application import (
+from app.core.dependencies import get_current_user  # ★ 新版 Auth
+from app.schemas.organizer.organizer_application import (
     OrganizerApplicationResponse,
     OrganizerApplicationReview,
 )
 
-from app.crud.organizer_application import (
+from crud.organizer.organizer_application import (
     get_application,
     list_applications,
     review_application,
@@ -22,13 +21,13 @@ router = APIRouter(prefix="/applications/organizers", tags=["Organizer Applicati
 
 
 # ----------------------------------------------------
-# GET：列出 Organizer Applications
+# GET：列出 Organizer Applications（僅 system_admin）
 # ----------------------------------------------------
 @router.get("/", response_model=list[OrganizerApplicationResponse])
 def get_organizer_applications(
     status: str | None = None,
     db: Session = Depends(get_db),
-    admin=Depends(get_current_system_admin)
+    user = Depends(get_current_user)
 ):
     """
     列出申請清單，可用 status 過濾：
@@ -39,17 +38,25 @@ def get_organizer_applications(
 
 
 # ----------------------------------------------------
-# POST: approve
+# POST: approve（僅 system_admin）
 # ----------------------------------------------------
 @router.post("/{uuid}/approve", response_model=OrganizerApplicationResponse)
 def approve_application(
     uuid: str,
     db: Session = Depends(get_db),
-    admin=Depends(get_current_system_admin)
+    user = Depends(get_current_user)
 ):
     """
     通過 Organizer 申請
     """
+    # RBAC
+    if user.role != "system_admin":
+        raise HTTPException(403, "Only system admin can approve applications")
+    
+    app = get_application(db, uuid)
+    if not app:
+        raise HTTPException(404, "Application not found")
+    
     app = get_application(db, uuid)
     if not app:
         raise HTTPException(404, "Application not found")
@@ -61,26 +68,30 @@ def approve_application(
         db=db,
         app=app,
         new_status="approved",
-        reviewer_uuid=admin.uuid,
-        reviewer_role="system_admin"
+        reviewer_uuid=user.user_uuid,
+        reviewer_role=user.role
     )
 
     return updated
 
 
 # ----------------------------------------------------
-# POST: reject
+# POST: reject（僅 system_admin)
 # ----------------------------------------------------
 @router.post("/{uuid}/reject", response_model=OrganizerApplicationResponse)
 def reject_application(
     uuid: str,
     review: OrganizerApplicationReview,
     db: Session = Depends(get_db),
-    admin=Depends(get_current_system_admin)
+    user = Depends(get_current_user)
 ):
     """
     駁回 Organizer 申請
     """
+    # RBAC
+    if user.role != "system_admin":
+        raise HTTPException(403, "Only system admin can reject applications")
+    
     app = get_application(db, uuid)
     if not app:
         raise HTTPException(404, "Application not found")
@@ -92,8 +103,8 @@ def reject_application(
         db=db,
         app=app,
         new_status="rejected",
-        reviewer_uuid=admin.uuid,
-        reviewer_role="system_admin",
+        reviewer_uuid=user.user_uuid,
+        reviewer_role=user.role,
         reason=review.reason
     )
 

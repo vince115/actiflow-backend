@@ -6,12 +6,12 @@ from sqlalchemy.orm import Session
 from app.core.db import get_db
 from app.core.dependencies import get_current_user
 
-from app.crud.submission import (
+from crud.submission.submission import (
     create_submission,
     get_submission_by_code,
     list_submissions_by_user,
 )
-from app.schemas.submission import (
+from app.schemas.submission.submission import (
     SubmissionCreate,
     SubmissionResponse,
 )

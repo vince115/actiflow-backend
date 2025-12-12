@@ -6,13 +6,13 @@ from sqlalchemy.orm import Session
 from app.core.db import get_db
 from app.core.dependencies import get_current_super_admin
 
-from app.crud.submission_value import (
+from crud.submission.submission_value import (
     get_submission_value,
     list_submission_values,
     update_submission_value,
     soft_delete_submission_value,
 )
-from app.schemas.submission_value import (
+from app.schemas.submission.submission_value import (
     SubmissionValueUpdate,
     SubmissionValueResponse,
 )

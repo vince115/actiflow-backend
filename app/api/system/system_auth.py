@@ -4,13 +4,15 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
-from app.core.dependencies import get_current_system_admin
-from app.schemas.system_membership import (
+from app.core.dependencies import get_current_user  # ★ 新版 Auth
+
+from app.schemas.membership.system_membership import (
     SystemMembershipCreate,
     SystemMembershipUpdate,
     SystemMembershipResponse
 )
-from app.crud.system_membership import (
+
+from crud.membership.system_membership import (
     create_system_membership,
     update_system_membership,
     soft_delete_system_membership,
@@ -21,6 +23,14 @@ from app.crud.system_membership import (
 router = APIRouter(prefix="/system/memberships", tags=["System Membership"])
 
 
+# ------------------------------------------------------------
+# Helper：確認是否為 system_admin
+# ------------------------------------------------------------
+def assert_system_admin(user):
+    if user.role != "system_admin":
+        raise HTTPException(403, "Only system_admin can manage platform roles")
+
+
 # ============================================================
 # 建立 Platform-level Role（System Admin 專用）
 # ============================================================
@@ -28,12 +38,9 @@ router = APIRouter(prefix="/system/memberships", tags=["System Membership"])
 def create_role(
     data: SystemMembershipCreate,
     db: Session = Depends(get_db),
-    current_admin = Depends(get_current_system_admin)
+    user = Depends(get_current_user)
 ):
-    """
-    建立 user 的 system-level membership
-    角色可為：system_admin / support / auditor
-    """
+    assert_system_admin(user)
 
     membership = create_system_membership(db, data)
     return membership
@@ -47,10 +54,11 @@ def update_role(
     user_uuid: str,
     data: SystemMembershipUpdate,
     db: Session = Depends(get_db),
-    current_admin = Depends(get_current_system_admin)
+    user = Depends(get_current_user)
 ):
-    membership = update_system_membership(db, user_uuid, data)
+    assert_system_admin(user)
 
+    membership = update_system_membership(db, user_uuid, data)
     if not membership:
         raise HTTPException(404, "System membership not found")
 
@@ -64,8 +72,10 @@ def update_role(
 def delete_role(
     user_uuid: str,
     db: Session = Depends(get_db),
-    current_admin = Depends(get_current_system_admin)
+    user = Depends(get_current_user)
 ):
+    assert_system_admin(user)
+
     membership = soft_delete_system_membership(db, user_uuid)
     if not membership:
         raise HTTPException(404, "System membership not found")
@@ -80,8 +90,10 @@ def delete_role(
 def get_role(
     user_uuid: str,
     db: Session = Depends(get_db),
-    current_admin = Depends(get_current_system_admin)
+    user = Depends(get_current_user)
 ):
+    assert_system_admin(user)
+
     membership = get_system_membership(db, user_uuid)
     if not membership:
         raise HTTPException(404, "System membership not found")
@@ -95,6 +107,7 @@ def get_role(
 @router.get("/", response_model=list[SystemMembershipResponse])
 def list_roles(
     db: Session = Depends(get_db),
-    current_admin = Depends(get_current_system_admin)
+    user = Depends(get_current_user)
 ):
+    assert_system_admin(user)
     return list_system_memberships(db)

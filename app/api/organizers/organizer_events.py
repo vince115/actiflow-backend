@@ -6,12 +6,12 @@ from sqlalchemy.orm import Session
 from app.core.db import get_db
 from app.core.dependencies import get_current_organizer_admin_factory
 
-from app.schemas.event import (
+from app.schemas.event.event import (
     EventCreate,
     EventUpdate,
     EventResponse,
 )
-from app.crud.event import (
+from crud.event.event import (
     create_event_by_organizer,
     get_event_by_uuid,
     list_events_by_organizer,

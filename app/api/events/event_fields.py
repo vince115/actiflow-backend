@@ -6,8 +6,8 @@ from uuid import UUID
 from app.core.db import get_db
 from app.core.dependencies import get_current_organizer_admin_factory
 
-from app.crud.event import get_event_by_uuid
-from app.crud.event_field import (
+from crud.event.event import get_event_by_uuid
+from crud.event.event_field import (
     create_event_field,
     list_event_fields,
     get_event_field_by_uuid,
@@ -15,7 +15,7 @@ from app.crud.event_field import (
     soft_delete_event_field,
 )
 
-from app.schemas.event_field import (
+from app.schemas.event.event_field_base import (
     EventFieldCreate,
     EventFieldUpdate,
     EventFieldResponse,
