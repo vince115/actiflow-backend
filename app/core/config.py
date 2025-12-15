@@ -1,4 +1,5 @@
 # app/core/config.py ← 全域設定：env、常數
+
 from functools import lru_cache
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import field_validator

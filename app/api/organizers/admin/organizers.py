@@ -1,11 +1,11 @@
-# app/api/organizers/endpoints_admin.py
+# app/api/organizers/admin/organizers.py
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
-from app.core.dependencies import get_current_user
-from crud.organizer.organizer import get_organizer_by_uuid
+from app.core.dependencies import require_organizer_admin
+from app.crud.organizer.crud_organizer import organizer_crud
 
 router = APIRouter(
     prefix="/admin/organizers",
@@ -20,13 +20,13 @@ router = APIRouter(
 def approve_organizer(
     uuid: str,
     db: Session = Depends(get_db),
-    user = Depends(get_current_user)
+    user = Depends(require_organizer_admin)
 ):
     # RBAC: 只有 super_admin 才能審核
     if user.role != "super_admin":
         raise HTTPException(403, "Only super admin can approve organizers")
     
-    organizer = get_organizer_by_uuid(db, uuid)
+    organizer = organizer_crud.get_organizer_by_uuid(db, uuid)
     if not organizer:
         raise HTTPException(404, "Organizer not found")
 
@@ -47,12 +47,12 @@ def approve_organizer(
 def reject_organizer(
     uuid: str,
     db: Session = Depends(get_db),
-    user = Depends(get_current_user)
+    user = Depends(require_organizer_admin)
 ):
     if user.role != "super_admin":
         raise HTTPException(403, "Only super admin can reject organizers")
     
-    organizer = get_organizer_by_uuid(db, uuid)
+    organizer = organizer_crud.get_organizer_by_uuid(db, uuid)
     if not organizer:
         raise HTTPException(404, "Organizer not found")
 

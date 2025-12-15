@@ -4,14 +4,16 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.router import api_router
-from app.api.utils.debug import router as debug_router
+from app.core.config import settings
 
 app = FastAPI(
     title="ActiFlow Backend",
-    version="1.0.0"
+    version="1.0.0",
 )
 
-# ⭐ CORS 設定（前端 Next.js 必須要這段）
+# ------------------------------------------------------------
+# CORS 設定
+# ------------------------------------------------------------
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -21,15 +23,25 @@ app.add_middleware(
         "http://127.0.0.1:3001",
     ],
     allow_credentials=True,
-    allow_methods=["*"],   # ⭐ 必須加，不然 OPTIONS 會 405
-    allow_headers=["*"],   # ⭐ 讓 Authorization / JSON 等 headers 都可用
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-
-# 掛上 API 分組
+# ------------------------------------------------------------
+# 掛上正式 API
+# ------------------------------------------------------------
 app.include_router(api_router)
-app.include_router(debug_router)
 
+# ------------------------------------------------------------
+# Debug API（只在 dev 掛載）
+# ------------------------------------------------------------
+if settings.ENV == "dev":
+    from app.api.utils.debug import router as debug_router
+    app.include_router(debug_router)
+
+# ------------------------------------------------------------
+# Health / Root
+# ------------------------------------------------------------
 @app.get("/")
 def root():
     return {"message": "ActiFlow API is running!"}

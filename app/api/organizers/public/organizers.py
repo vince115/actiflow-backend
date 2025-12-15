@@ -1,19 +1,21 @@
-# app/api/organizers/organizers.py
+# app/api/organizers/organizers.py  # organizer 自己的 CRUD
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
-from app.schemas.organizer.organizer import OrganizerCreate, OrganizerUpdate, OrganizerResponse
-from crud.organizer.organizer import (
-    create_organizer,
-    get_organizer_by_uuid,
-    list_organizers,
-    update_organizer as update_org_in_db,
+from app.core.dependencies import get_current_identity
+
+from app.schemas.organizer.organizer_create import OrganizerCreate
+from app.schemas.organizer.organizer_update import OrganizerUpdate
+from app.schemas.organizer.organizer_response import OrganizerResponse
+
+from app.crud.organizer.crud_organizer import organizer_crud
+from app.crud.membership.crud_organizer_membership import (
+    get_membership,
+    get_user_memberships,
 )
-from crud.membership.organizer_membership import get_membership, get_user_memberships
-from crud.membership.system_membership import get_system_membership
-from app.core.dependencies import get_current_user
+from app.crud.membership.crud_system_membership import get_system_membership
 
 
 router = APIRouter(prefix="/organizers", tags=["Organizers"])
@@ -51,7 +53,7 @@ def create_new_organizer(
     current_user=Depends(get_current_user)
 ):
     require_system_admin(current_user, db)
-    organizer = create_organizer(db, data)
+    organizer = organizer_crud.create(db, data)
     return organizer
 
 
@@ -65,18 +67,20 @@ def update_organizer_info(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
+    organizer = organizer_crud.get_organizer_by_uuid(db, organizer_uuid)
 
-    organizer = get_organizer_by_uuid(db, organizer_uuid)
     if not organizer or organizer.is_deleted:
         raise HTTPException(404, "Organizer not found")
 
+    # system_admin 可以直接修改
     system_mem = get_system_membership(db, current_user.uuid)
     if system_mem and system_mem.role == "system_admin":
-        return update_org_in_db(db, organizer_uuid, data)
+        return organizer_crud.update(db, organizer, data)
 
+    # 其他使用者必須是 owner/admin
     require_organizer_admin(current_user, organizer_uuid, db)
 
-    return update_org_in_db(db, organizer_uuid, data)
+    return organizer_crud.update(db, organizer, data)
 
 
 # -------------------------------------------------------------------
@@ -88,7 +92,7 @@ def get_single_organizer(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
-    organizer = get_organizer_by_uuid(db, organizer_uuid)
+    organizer = organizer_crud.get_organizer_by_uuid(db, organizer_uuid)
 
     if not organizer or organizer.is_deleted:
         raise HTTPException(404, "Organizer not found")
@@ -103,7 +107,6 @@ def get_single_organizer(
 
     return organizer
 
-
 # -------------------------------------------------------------------
 # List Organizers
 # -------------------------------------------------------------------
@@ -114,16 +117,18 @@ def list_all_organizers(
 ):
     system_mem = get_system_membership(db, current_user.uuid)
 
+    # system admin sees all
     if system_mem and system_mem.role == "system_admin":
-        return list_organizers(db)
+        return organizer_crud.list(db)
 
     memberships = get_user_memberships(db, current_user.uuid)
 
-    organizer_ids = {m.organizer_uuid for m in memberships}
+    organizers = []
 
-    return [
-        org
-        for org_uuid in organizer_ids
-        if (org := get_organizer_by_uuid(db, org_uuid))
-        and not org.is_deleted
-    ]
+    for m in memberships:
+        organizer = organizer_crud.get_organizer_by_uuid(db, m.organizer_uuid)
+        if not organizer or organizer.is_deleted:
+            continue
+        organizers.append(organizer)
+
+    return organizers
