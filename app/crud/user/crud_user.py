@@ -3,6 +3,9 @@
 from sqlalchemy.orm import Session
 from typing import Optional
 
+from app.core.security import hash_password
+import secrets
+
 from app.crud.base.crud_base import CRUDBase
 from app.models.user.user import User
 from app.schemas.user.user_create import UserCreate
@@ -39,5 +42,18 @@ class CRUDUser(CRUDBase[User]):
             obj_in=data.model_dump(exclude_unset=True),
         )
 
+    def force_reset_password(self, db: Session, user_uuid: str) -> Optional[str]:
+        user = self.get(db, user_uuid)
+        if not user:
+            return None
+
+        new_password = secrets.token_urlsafe(10)
+        user.password_hash = hash_password(new_password)
+
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+        return new_password
 
 user_crud = CRUDUser(User)

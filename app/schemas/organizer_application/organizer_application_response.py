@@ -1,7 +1,7 @@
 # app/schemas/organizer_application/organizer_application_response.py
 
 from app.schemas.organizer_application.organizer_application_base import OrganizerApplicationBase
-from app.schemas.common.base_model import BaseSchema
+from app.schemas.common.base import BaseSchema
 
 
 class OrganizerApplicationResponse(OrganizerApplicationBase, BaseSchema):

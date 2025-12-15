@@ -2,11 +2,14 @@
 
 from sqlalchemy.orm import Session
 from typing import List
+from uuid import UUID
 
 from app.crud.base.crud_base import CRUDBase
 from app.models.submission.submission_value import SubmissionValue
-from app.schemas.submission.submission_value_create import SubmissionValueCreate
-from app.schemas.submission.submission_value_update import SubmissionValueUpdate
+from app.schemas.submission.submission_value import (
+    SubmissionValueCreate,
+    SubmissionValueUpdate,
+)
 
 
 class CRUDSubmissionValue(CRUDBase[SubmissionValue]):
@@ -52,6 +55,41 @@ class CRUDSubmissionValue(CRUDBase[SubmissionValue]):
             db.query(self.model)
             .filter(
                 self.model.submission_id == submission_id,
+                self.model.is_deleted == False,
+            )
+            .all()
+        )
+
+    # -------------------------------------------------
+    # 用於 get /me/submissions
+    # -------------------------------------------------
+    def get_by_uuid(
+        self,
+        db: Session,
+        uuid: UUID | str
+    ) -> SubmissionValue | None:
+        return (
+            db.query(self.model)
+            .filter(
+                self.model.uuid == uuid,
+                self.model.is_deleted == False,
+            )
+            .first()
+        )
+
+    # -------------------------------------------------
+    # 用於 get /me/submissions/{submission_uuid}
+    # -------------------------------------------------
+    def list_by_submission_uuid(
+        self,
+        db: Session,
+        submission_uuid: UUID | str
+    ) -> List[SubmissionValue]:
+        return (
+            db.query(self.model)
+            .join(self.model.submission)
+            .filter(
+                self.model.submission.has(uuid=submission_uuid),
                 self.model.is_deleted == False,
             )
             .all()

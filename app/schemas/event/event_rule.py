@@ -1,1 +1,0 @@
-# app/schemas/event/event_rule.py

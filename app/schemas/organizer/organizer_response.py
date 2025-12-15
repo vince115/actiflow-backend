@@ -3,7 +3,7 @@
 from uuid import UUID
 from typing import Optional, Dict, Any
 from app.schemas.organizer.organizer_base import OrganizerBase
-from app.schemas.common.base_model import BaseSchema
+from app.schemas.common.base import BaseSchema
 
 
 class OrganizerResponse(OrganizerBase, BaseSchema):

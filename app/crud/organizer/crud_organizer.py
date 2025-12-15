@@ -1,6 +1,7 @@
 # app/crud/organizer/crud_organizer.py
 
 from sqlalchemy.orm import Session
+from typing import Optional
 
 from app.crud.base.crud_base import CRUDBase
 from app.models.organizer.organizer import Organizer
@@ -14,7 +15,7 @@ class CRUDOrganizer(CRUDBase[Organizer]):
     -------------------------------------------------
     用途：
     - 管理主辦單位基本資料
-    - 不處理申請流程（那是 OrganizerApplication）
+    - 不處理申請流程（那是 OrganizerApplication 模組）
     """
 
     def create(
@@ -39,5 +40,21 @@ class CRUDOrganizer(CRUDBase[Organizer]):
             obj_in=data.model_dump(exclude_unset=True),
         )
 
+    # -----------------------------------------------
+    # ⭐ 同義方法：標準 CRUD 命名 get_by_uuid()
+    #    讓 CRUD 介面保持一致性
+    # -----------------------------------------------
 
+    def get_by_uuid(self, db: Session, uuid: str) -> Optional[Organizer]:
+        return (
+            db.query(Organizer)
+            .filter(
+                Organizer.uuid == uuid,
+                Organizer.is_deleted == False
+            )
+            .first()
+        )
+
+
+# 實例化 CRUD
 organizer_crud = CRUDOrganizer(Organizer)

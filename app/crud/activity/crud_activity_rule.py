@@ -3,8 +3,9 @@
 from sqlalchemy.orm import Session
 from app.crud.base.crud_base import CRUDBase
 from app.models.activity.activity_rule import ActivityRule
-from app.schemas.activity.activity_rule_create import ActivityRuleCreate
-from app.schemas.activity.activity_rule_update import ActivityRuleUpdate
+
+from app.schemas.activity_rule.activity_rule_create import ActivityRuleCreate
+from app.schemas.activity_rule.activity_rule_update import ActivityRuleUpdate
 
 
 class CRUDActivityRule(CRUDBase[ActivityRule]):

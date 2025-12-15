@@ -4,7 +4,7 @@ from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, List
 from uuid import UUID
 
-from app.schemas.membership.organizer_membership_public import OrganizerMembershipPublic
+from app.schemas.membership.organizer.organizer_membership_public import OrganizerMembershipPublic
 
 
 class UserPublic(BaseModel):

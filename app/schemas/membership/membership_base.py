@@ -1,1 +1,0 @@
-# app/schemas/membership/membership_base.py

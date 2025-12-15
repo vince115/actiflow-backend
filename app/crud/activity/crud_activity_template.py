@@ -3,8 +3,9 @@
 from sqlalchemy.orm import Session
 from app.crud.base.crud_base import CRUDBase
 from app.models.activity.activity_template import ActivityTemplate
-from app.schemas.activity.activity_template_create import ActivityTemplateCreate
-from app.schemas.activity.activity_template_update import ActivityTemplateUpdate
+
+from app.schemas.activity_template.activity_template_create import ActivityTemplateCreate
+from app.schemas.activity_template.activity_template_update import ActivityTemplateUpdate
 
 
 class CRUDActivityTemplate(CRUDBase[ActivityTemplate]):

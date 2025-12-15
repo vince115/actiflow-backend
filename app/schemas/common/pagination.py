@@ -4,13 +4,14 @@ from pydantic import BaseModel
 from typing import List, Any
 
 
-class Pagination(BaseModel):
+class PaginatedResponse(BaseModel):
     """
-    分頁資料回傳格式：
-    - total: 總資料筆數
-    - page: 當前頁碼
-    - page_size: 單頁筆數
-    - items: 當頁資料列表
+    通用分頁回傳格式（簡化版）
+
+    - total: 總筆數
+    - page: 當前頁
+    - page_size: 每頁筆數
+    - items: 資料列表（由 response_model 決定內容）
     """
 
     total: int
@@ -19,3 +20,4 @@ class Pagination(BaseModel):
     items: List[Any]
 
     model_config = {"from_attributes": True}
+    
