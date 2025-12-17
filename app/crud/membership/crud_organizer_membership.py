@@ -75,6 +75,23 @@ def list_user_memberships(
         .all()
     )
 
+# ------------------------------------------------------------
+# Alias for RBAC / backward compatibility
+# ------------------------------------------------------------
+def get_organizer_membership(
+    db: Session,
+    user_uuid: str,
+    organizer_uuid: str,
+) -> OrganizerMembership | None:
+    """
+    Alias of get_membership_by_user_and_organizer
+    給 RBAC / API 使用，避免到處改 import
+    """
+    return get_membership_by_user_and_organizer(
+        db=db,
+        user_uuid=user_uuid,
+        organizer_uuid=organizer_uuid,
+    )
 
 # ============================================================
 # Create

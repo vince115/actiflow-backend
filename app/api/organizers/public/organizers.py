@@ -12,8 +12,8 @@ from app.schemas.organizer.organizer_response import OrganizerResponse
 
 from app.crud.organizer.crud_organizer import organizer_crud
 from app.crud.membership.crud_organizer_membership import (
-    get_membership,
-    get_user_memberships,
+    get_membership_by_user_and_organizer,
+    list_user_memberships,
 )
 from app.crud.membership.crud_system_membership import get_system_membership
 
@@ -34,7 +34,7 @@ def require_system_admin(user, db: Session):
 # Utility: Check organizer_owner/admin
 # -------------------------------------------------------------------
 def require_organizer_admin(user, organizer_uuid: str, db: Session):
-    mem = get_membership(db, user.uuid, organizer_uuid)
+    mem = get_membership_by_user_and_organizer(db, user.uuid, organizer_uuid)
 
     if not mem:
         raise HTTPException(403, "You are not a member of this organizer")
@@ -50,22 +50,20 @@ def require_organizer_admin(user, organizer_uuid: str, db: Session):
 def create_new_organizer(
     data: OrganizerCreate,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user)
+    current_user=Depends(get_current_identity)
 ):
     require_system_admin(current_user, db)
-    organizer = organizer_crud.create(db, data)
-    return organizer
+    return organizer_crud.create(db, data)
 
 
 # -------------------------------------------------------------------
 # Update Organizer （owner/admin OR system_admin）
 # -------------------------------------------------------------------
-@router.put("/{organizer_uuid}", response_model=OrganizerResponse)
 def update_organizer_info(
     organizer_uuid: str,
     data: OrganizerUpdate,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user)
+    current_user=Depends(get_current_identity)
 ):
     organizer = organizer_crud.get_organizer_by_uuid(db, organizer_uuid)
 
@@ -79,7 +77,6 @@ def update_organizer_info(
 
     # 其他使用者必須是 owner/admin
     require_organizer_admin(current_user, organizer_uuid, db)
-
     return organizer_crud.update(db, organizer, data)
 
 
@@ -90,7 +87,7 @@ def update_organizer_info(
 def get_single_organizer(
     organizer_uuid: str,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user)
+    current_user=Depends(get_current_identity)
 ):
     organizer = organizer_crud.get_organizer_by_uuid(db, organizer_uuid)
 
@@ -101,7 +98,12 @@ def get_single_organizer(
     if system_mem and system_mem.role == "system_admin":
         return organizer
 
-    mem = get_membership(db, current_user.uuid, organizer_uuid)
+    mem = get_membership_by_user_and_organizer(
+        db,
+        current_user.uuid,
+        organizer_uuid
+    )
+
     if not mem:
         raise HTTPException(403, "You don't have permission to view this organizer")
 
@@ -113,22 +115,22 @@ def get_single_organizer(
 @router.get("/", response_model=list[OrganizerResponse])
 def list_all_organizers(
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user)
+    current_user=Depends(get_current_identity)
 ):
     system_mem = get_system_membership(db, current_user.uuid)
 
-    # system admin sees all
     if system_mem and system_mem.role == "system_admin":
         return organizer_crud.list(db)
 
-    memberships = get_user_memberships(db, current_user.uuid)
+    memberships = list_user_memberships(
+        db,
+        current_user.uuid
+    )
 
     organizers = []
-
     for m in memberships:
         organizer = organizer_crud.get_organizer_by_uuid(db, m.organizer_uuid)
-        if not organizer or organizer.is_deleted:
-            continue
-        organizers.append(organizer)
+        if organizer and not organizer.is_deleted:
+            organizers.append(organizer)
 
     return organizers

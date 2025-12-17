@@ -4,8 +4,8 @@ from sqlalchemy.orm import Session
 
 from app.crud.base.crud_base import CRUDBase
 from app.models.event.event_field import EventField
-from app.schemas.event.event_field_create import EventFieldCreate
-from app.schemas.event.event_field_update import EventFieldUpdate
+from app.schemas.event.field.event_field_create import EventFieldCreate
+from app.schemas.event.field.event_field_update import EventFieldUpdate
 
 
 class CRUDEventField(CRUDBase[EventField]):

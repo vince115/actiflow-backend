@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_identity
 
 router = APIRouter(
     prefix="/system/permissions",
@@ -15,14 +15,14 @@ router = APIRouter(
 @router.get("/me")
 def get_my_permissions(
     db: Session = Depends(get_db),
-    user=Depends(get_current_user),
+    identity=Depends(get_current_identity),
 ):
     """
     回傳目前使用者的權限摘要
     （給前端快速判斷 UI 顯示）
     """
 
-    membership = user.system_membership
+    membership = identity.system_membership
 
     if not membership:
         return {

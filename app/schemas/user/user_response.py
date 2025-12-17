@@ -5,9 +5,9 @@ from typing import Optional, List
 from uuid import UUID
 
 from app.schemas.user.user_base import UserBase
-from app.schemas.user.user_settings_base import UserSettingsResponse
+from app.schemas.user.user_settings_response import UserSettingsResponse
 from app.schemas.membership.organizer.organizer_membership_public import OrganizerMembershipPublic
-from app.schemas.base.base_model import BaseSchema
+from app.schemas.common.base import BaseSchema
 
 
 class UserResponse(UserBase, BaseSchema):

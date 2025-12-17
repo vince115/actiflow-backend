@@ -251,7 +251,7 @@ ActiFlow 採用 decorator RBAC（建議方式）：
 
 Base dependency：
 ```python
-current_user = Depends(get_current_user)
+current_user = Depends(get_current_identity)
 ```
 
 ### ✔ 不再使用：

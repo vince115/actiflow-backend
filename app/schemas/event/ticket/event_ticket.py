@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
 from uuid import UUID
-from app.schemas.base.base_model import BaseSchema
+from app.schemas.common.base import BaseSchema
 
 
 class EventTicketBase(BaseModel):

@@ -1,10 +1,10 @@
-# app/schemas/common/config.py  ← Config 統一格式
+# app/schemas/common/config.py
 
 from typing import Dict, Any
-from pydantic import BaseModel
+from pydantic import RootModel
 
 
-class ConfigObject(BaseModel):
+class ConfigObject(RootModel[Dict[str, Any]]):
     """
     通用 config 結構，允許存各種設定（key-value）。
     例如：
@@ -12,7 +12,5 @@ class ConfigObject(BaseModel):
     - Organizer.config
     - ActivityTemplate.config
     """
-
-    __root__: Dict[str, Any] = {}
 
     model_config = {"from_attributes": True}

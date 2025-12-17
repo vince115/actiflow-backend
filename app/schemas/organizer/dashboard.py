@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 from typing import List
 
-from app.schemas.event.event import EventResponse
+from app.schemas.event.core.event_response import EventResponse
 from app.schemas.organizer_application.organizer_application_response import OrganizerApplicationResponse
 
 

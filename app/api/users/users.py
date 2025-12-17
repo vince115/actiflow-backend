@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_identity
 
 from app.crud.user.crud_user import user_crud
 from app.schemas.user.user_update import UserUpdate
@@ -22,9 +22,9 @@ router = APIRouter(
 @router.get("/me", response_model=UserResponse)
 def get_me(
     db: Session = Depends(get_db),
-    user=Depends(get_current_user),
+    identity=Depends(get_current_identity),
 ):
-    return user
+    return identity
 
 
 # ------------------------------------------------------------
@@ -34,11 +34,11 @@ def get_me(
 def update_me(
     data: UserUpdate,
     db: Session = Depends(get_db),
-    user=Depends(get_current_user),
+    identity=Depends(get_current_identity),
 ):
     updated = user_crud.update(
         db=db,
-        db_obj=user,
+        db_obj=identity,
         data=data,
     )
     return updated

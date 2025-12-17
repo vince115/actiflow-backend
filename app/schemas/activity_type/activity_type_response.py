@@ -2,7 +2,7 @@
 
 from uuid import UUID
 from app.schemas.activity_type.activity_type_base import ActivityTypeBase
-from app.schemas.base.base_model import BaseSchema
+from app.schemas.common.base import BaseSchema
 
 
 class ActivityTypeResponse(ActivityTypeBase, BaseSchema):
