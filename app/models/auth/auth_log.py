@@ -1,25 +1,54 @@
 # app/models/auth/auth_log.py
 
-from sqlalchemy import Column, String, DateTime, ForeignKey
-from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import UUID
+# ---------------------------------------------------------
+# Standard Model Header (SQLAlchemy 2.0)
+# ---------------------------------------------------------
+from typing import List, Optional, TYPE_CHECKING
+from datetime import datetime
+from uuid import UUID as PyUUID
+
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+)
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID, JSONB
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from app.core.db import Base
 from app.models.base.base_model import BaseModel
+# ---------------------------------------------------------
+if TYPE_CHECKING:
+    from app.models.user.user import User
+# ---------------------------------------------------------
 
 class AuthLog(BaseModel, Base):
     """
-    登入 / 登出 / refresh token / 驗證錯誤紀錄
+    登入 / 登出 / refresh token / 驗證相關行為紀錄
     """
+
     __tablename__ = "auth_logs"
 
-    user_uuid = Column(
-        UUID(as_uuid=True),
+    # ---------------------------------------------------------
+    # Foreign Key
+    # ---------------------------------------------------------
+    user_uuid: Mapped[Optional[PyUUID]] = mapped_column(
+        PG_UUID(as_uuid=True),
         ForeignKey("users.uuid", ondelete="SET NULL"),
         nullable=True,
-        index=True
+        index=True,
     )
 
-    event = Column(String, nullable=False)  
+    # ---------------------------------------------------------
+    # Event type
+    # ---------------------------------------------------------
+    event: Mapped[str] = mapped_column(
+        String,
+        nullable=False,
+    )
     """
     login_success
     login_failed
@@ -30,8 +59,30 @@ class AuthLog(BaseModel, Base):
     email_verified
     """
 
-    ip = Column(String, nullable=True)
-    user_agent = Column(String, nullable=True)
-    detail = Column(String, nullable=True)
+    # ---------------------------------------------------------
+    # Request info
+    # ---------------------------------------------------------
+    ip: Mapped[Optional[str]] = mapped_column(
+        String,
+        nullable=True,
+    )
 
-    user = relationship("User", lazy="selectin")
+    user_agent: Mapped[Optional[str]] = mapped_column(
+        String,
+        nullable=True,
+    )
+
+    detail: Mapped[Optional[str]] = mapped_column(
+        String,
+        nullable=True,
+    )
+
+    # ---------------------------------------------------------
+    # Relationship
+    # ---------------------------------------------------------
+
+    user: Mapped[Optional["User"]] = relationship(
+        "User",
+        back_populates="auth_logs",
+        lazy="selectin",
+    )

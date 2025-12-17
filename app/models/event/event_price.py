@@ -1,12 +1,31 @@
 # app/models/event/event_price.py
 
-from sqlalchemy import Column, String, Integer, Boolean, ForeignKey, DateTime, Numeric
-from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+# ---------------------------------------------------------
+# Standard Model Header (SQLAlchemy 2.0)
+# ---------------------------------------------------------
+from typing import List, Optional, TYPE_CHECKING
+from datetime import datetime
+from uuid import UUID as PyUUID
+
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Numeric,
+    Text,
+)
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID, JSONB
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base
 from app.models.base.base_model import BaseModel
-
+# ---------------------------------------------------------
+if TYPE_CHECKING:
+    from app.models.event.event import Event
+    from app.models.event.event_ticket import EventTicket
+# ---------------------------------------------------------
 
 class EventPrice(BaseModel, Base):
     """
@@ -21,43 +40,70 @@ class EventPrice(BaseModel, Base):
     # ---------------------------------------------------------
     # 外鍵：活動
     # ---------------------------------------------------------
-    event_uuid = Column(
-        UUID(as_uuid=True),
+    event_uuid: Mapped[PyUUID] = mapped_column(
         ForeignKey("events.uuid", ondelete="CASCADE"),
         nullable=False,
-        index=True
+        index=True,
     )
 
     # ---------------------------------------------------------
     # 價格名稱（例如：早鳥票 / 一般票）
     # ---------------------------------------------------------
-    label = Column(String(255), nullable=False)
+    label: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+    )
 
     # 提交表單時使用的 key（例如：EARLY_BIRD）
-    price_key = Column(String(100), nullable=False, index=True)
+    price_key: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False,
+        index=True,
+    )
 
     # 顯示排序（越小越前）
-    sort_order = Column(Integer, default=0)
+    sort_order: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+    )
 
     # ---------------------------------------------------------
     # 價格設定
     # ---------------------------------------------------------
-    price = Column(Numeric(10, 2), nullable=False)
+    price: Mapped[float] = mapped_column(
+        Numeric(10, 2),
+        nullable=False,
+    )
 
     # 名額限制（None 表示無限制）
-    quota = Column(Integer, nullable=True)
+    quota: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        nullable=True,
+    )
 
     # 已售出（你之後會用在報名邏輯）
-    sold = Column(Integer, default=0)
+    sold: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+    )
 
     # ---------------------------------------------------------
     # 期限設定（常用於早鳥票）
     # ---------------------------------------------------------
-    start_at = Column(DateTime, nullable=True)
-    end_at = Column(DateTime, nullable=True)
+    start_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime,
+        nullable=True,
+    )
+    end_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime,
+        nullable=True,
+    )
 
     # 是否啟用這個價格
-    is_enabled = Column(Boolean, default=True)
+    is_enabled: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True,
+    )
 
     # ---------------------------------------------------------
     # 票種其他設定
@@ -67,13 +113,22 @@ class EventPrice(BaseModel, Base):
     #  - 優惠碼限制
     #  - 團報規則
     # ---------------------------------------------------------
-    config = Column(JSONB, default=lambda: {})
+    config: Mapped[dict] = mapped_column(
+        JSONB,
+        default=dict,
+    )
 
     # ---------------------------------------------------------
     # Relationship
     # ---------------------------------------------------------
-    event = relationship(
+    event: Mapped["Event"] = relationship(
         "Event",
         back_populates="prices",
-        lazy="selectin"
+        lazy="selectin",
+    )
+
+    tickets: Mapped[List["EventTicket"]] = relationship(
+        "EventTicket",
+        back_populates="price",
+        lazy="selectin",
     )

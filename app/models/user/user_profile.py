@@ -1,4 +1,4 @@
-# app/models/membership/system_membership.py
+# app/models/user/user_profile.py
 
 # ---------------------------------------------------------
 # Standard Model Header (SQLAlchemy 2.0)
@@ -14,7 +14,6 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
-    UniqueConstraint
 )
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -26,75 +25,57 @@ if TYPE_CHECKING:
     from app.models.user.user import User
 # ---------------------------------------------------------
 
-
-SYSTEM_ROLES = (
-    "super_admin",
-    "system_admin",
-    "site_admin",
-    "support",
-    "auditor",
-)
-
-
-class SystemMembership(BaseModel, Base):
-    """
-    平台層級會員角色（非 Organizer）
-    - 企業級 RBAC
-    - 每個 User 僅允許一筆 system role
-    """
-
-    __tablename__ = "system_memberships"
-
-    __table_args__ = (
-        UniqueConstraint("user_uuid", name="uq_system_user"),
-    )
+class UserProfile(BaseModel, Base):
+    __tablename__ = "user_profiles"
 
     # ---------------------------------------------------------
-    # Foreign Key → User
+    # 1:1 FK → User
     # ---------------------------------------------------------
     user_uuid: Mapped[PyUUID] = mapped_column(
-        PG_UUID(as_uuid=True),
         ForeignKey("users.uuid", ondelete="CASCADE"),
         nullable=False,
+        unique=True,
         index=True,
     )
 
     # ---------------------------------------------------------
-    # Platform role
+    # Profile fields
     # ---------------------------------------------------------
-    role: Mapped[str] = mapped_column(
-        String,
-        nullable=False,
-        index=True,
+    birthday: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
     )
 
-    # ---------------------------------------------------------
-    # User status（非 BaseModel 的 is_active）
-    # ------------------------------------------------selector
-    # ---------------------------------------------------------
-    is_suspended: Mapped[bool] = mapped_column(
-        Boolean,
-        default=False,
-        nullable=False,
+    address: Mapped[Optional[dict]] = mapped_column(
+        JSONB,
+        nullable=True,
     )
 
-    suspended_reason: Mapped[Optional[str]] = mapped_column(
+    school: Mapped[Optional[str]] = mapped_column(
         String,
         nullable=True,
     )
 
-    # ---------------------------------------------------------
-    # Config（平台權限、功能開關、UI 模式）
-    # ---------------------------------------------------------
-    config: Mapped[dict] = mapped_column(
-        JSONB,
-        default=dict,
+    employment: Mapped[Optional[str]] = mapped_column(
+        String,
+        nullable=True,
+    )
+
+    job_title: Mapped[Optional[str]] = mapped_column(
+        String,
+        nullable=True,
+    )
+
+    blood_type: Mapped[Optional[str]] = mapped_column(
+        String,
+        nullable=True,
     )
 
     # ---------------------------------------------------------
     # Relationship
     # ---------------------------------------------------------
     user: Mapped["User"] = relationship(
-        back_populates="system_membership",
+        "User",
+        back_populates="profile",
         lazy="selectin",
     )

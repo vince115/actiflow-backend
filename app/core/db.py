@@ -8,7 +8,7 @@ from app.core.config import settings
 # ---------------------------------------------------------
 # Database URL (sync)
 # ---------------------------------------------------------
-DATABASE_URL = settings.DATABASE_URL
+DATABASE_URL = settings.db_url
 
 print("DATABASE_URL =", DATABASE_URL)  # ← 正確印出當前連線的資料庫 URL
 

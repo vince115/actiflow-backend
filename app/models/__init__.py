@@ -41,9 +41,6 @@ from .membership.organizer_membership import OrganizerMembership
 from .organizer.organizer import Organizer
 from .organizer.organizer_application import OrganizerApplication
 
-# Platform
-from .platform.platform import Platform
-
 # Submission
 from .submission.submission import Submission
 from .submission.submission_value import SubmissionValue
@@ -58,3 +55,4 @@ from .system.system_notification import SystemNotification
 # User
 from .user.user import User
 from .user.user_settings import UserSettings
+from app.models.user.user_profile import UserProfile

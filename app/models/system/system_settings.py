@@ -1,9 +1,29 @@
 # app/models/system/system_settings.py
 
-from sqlalchemy import Column, String, Boolean, Integer
-from sqlalchemy.dialects.postgresql import JSONB
+# ---------------------------------------------------------
+# Standard Model Header (SQLAlchemy 2.0)
+# ---------------------------------------------------------
+from typing import List, Optional, TYPE_CHECKING
+from datetime import datetime
+from uuid import UUID as PyUUID
+
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+)
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID, JSONB
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from app.core.db import Base
 from app.models.base.base_model import BaseModel
+# ---------------------------------------------------------
+if TYPE_CHECKING:
+    from app.models.user.user import User
+# ---------------------------------------------------------
 
 class SystemSettings(BaseModel, Base):
     """
@@ -14,20 +34,39 @@ class SystemSettings(BaseModel, Base):
 
     __tablename__ = "system_settings"
 
-    # 平台名稱
-    site_name = Column(String(255), default="ActiFlow")
+    # ---------------------------------------------------------
+    # 基本設定
+    # ---------------------------------------------------------
+    site_name: Mapped[str] = mapped_column(
+        String(255),
+        default="ActiFlow",
+    )
 
-    # LOGO
-    logo_url = Column(String(500), nullable=True)
+    logo_url: Mapped[Optional[str]] = mapped_column(
+        String(500),
+        nullable=True,
+    )
 
-    # 客服/聯絡 Email
-    support_email = Column(String(255), nullable=True)
+    support_email: Mapped[Optional[str]] = mapped_column(
+        String(255),
+        nullable=True,
+    )
 
-    # 自訂設定（theme, SEO, SMTP config, OAuth provider config）
-    config = Column(JSONB, default=lambda: {})
+    # ---------------------------------------------------------
+    # Config / Flags
+    # ---------------------------------------------------------
+    config: Mapped[dict] = mapped_column(
+        JSONB,
+        default=dict,
+    )
 
-    # 是否為目前使用版本
-    is_active = Column(Boolean, default=True)
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True,
+    )
 
     # 設定版本號（配合 SystemConfigVersion 使用）
-    version = Column(Integer, default=1)
+    version: Mapped[int] = mapped_column(
+        Integer,
+        default=1,
+    )

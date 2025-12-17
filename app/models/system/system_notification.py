@@ -1,12 +1,29 @@
 # app/models/system/system_notification.py
 
-from sqlalchemy import Column, String, Boolean, Text, DateTime
-from sqlalchemy.dialects.postgresql import JSONB
-from datetime import datetime, timezone
+# ---------------------------------------------------------
+# Standard Model Header (SQLAlchemy 2.0)
+# ---------------------------------------------------------
+from typing import List, Optional, TYPE_CHECKING
+from datetime import datetime
+from uuid import UUID as PyUUID
+
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+)
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID, JSONB
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base
 from app.models.base.base_model import BaseModel
-
+# ---------------------------------------------------------
+if TYPE_CHECKING:
+    from app.models.user.user import User
+# ---------------------------------------------------------
 
 class SystemNotification(BaseModel, Base):
     """
@@ -15,25 +32,55 @@ class SystemNotification(BaseModel, Base):
 
     __tablename__ = "system_notifications"
 
-    # 企業外部代碼
-    notification_code = Column(String, unique=True, nullable=False, index=True)
-
-    # 標題與內容
-    title = Column(String, nullable=False)
-    message = Column(Text, nullable=False)
-
-    # 等級（通知類型）
-    level = Column(
+    # ---------------------------------------------------------
+    # External identity
+    # ---------------------------------------------------------
+    notification_code: Mapped[str] = mapped_column(
         String,
+        unique=True,
         nullable=False,
-        default="info"  # info / warning / critical / success
+        index=True,
     )
 
-    # 是否公開顯示在前台
-    is_published = Column(Boolean, default=False)
+    # ---------------------------------------------------------
+    # Content
+    # ---------------------------------------------------------
+    title: Mapped[str] = mapped_column(
+        String,
+        nullable=False,
+    )
 
-    # 額外設定，如：前台顯示方式、有效日期
-    config = Column(JSONB, default=lambda: {})
+    message: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+    )
 
-    # 時間戳
-    published_at = Column(DateTime(timezone=True), nullable=True)
+    # ---------------------------------------------------------
+    # Notification level
+    # ---------------------------------------------------------
+    level: Mapped[str] = mapped_column(
+        String,
+        nullable=False,
+        default="info",  # info / warning / critical / success
+    )
+
+    # ---------------------------------------------------------
+    # Visibility
+    # ---------------------------------------------------------
+    is_published: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+    )
+
+    published_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    # ---------------------------------------------------------
+    # Config
+    # ---------------------------------------------------------
+    config: Mapped[dict] = mapped_column(
+        JSONB,
+        default=dict,
+    )

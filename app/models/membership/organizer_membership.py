@@ -1,11 +1,31 @@
 # app/models/membership/organizer_membership.py
 
-from sqlalchemy import Column, String, ForeignKey, UniqueConstraint, Boolean
-from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+# ---------------------------------------------------------
+# Standard Model Header (SQLAlchemy 2.0)
+# ---------------------------------------------------------
+from typing import List, Optional, TYPE_CHECKING
+from datetime import datetime
+from uuid import UUID as PyUUID
+
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint
+)
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID, JSONB
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base
 from app.models.base.base_model import BaseModel
+# ---------------------------------------------------------
+if TYPE_CHECKING:
+    from app.models.user.user import User
+    from app.models.organizer.organizer import Organizer
+# ---------------------------------------------------------
 
 
 ORGANIZER_ROLES = (
@@ -31,40 +51,63 @@ class OrganizerMembership(BaseModel, Base):
     )
 
     # ---------------------------------------------------------
-    # 外鍵
+    # Foreign Keys
     # ---------------------------------------------------------
-    user_uuid = Column(
-        UUID(as_uuid=True),
+    user_uuid: Mapped[PyUUID] = mapped_column(
+        PG_UUID(as_uuid=True),
         ForeignKey("users.uuid", ondelete="CASCADE"),
         nullable=False,
-        index=True
+        index=True,
     )
 
-    organizer_uuid = Column(
-        UUID(as_uuid=True),
+    organizer_uuid: Mapped[PyUUID] = mapped_column(
+        PG_UUID(as_uuid=True),
         ForeignKey("organizers.uuid", ondelete="CASCADE"),
         nullable=False,
-        index=True
+        index=True,
     )
 
     # ---------------------------------------------------------
     # 組織內角色
     # ---------------------------------------------------------
-    role = Column(String, nullable=False, index=True, default="member")
+    role: Mapped[str] = mapped_column(
+        String,
+        nullable=False,
+        index=True,
+        default="member",
+    )
 
     # ---------------------------------------------------------
     # 成員狀態（非資料列 is_active）
     # ---------------------------------------------------------
-    is_suspended = Column(Boolean, default=False)
-    suspended_reason = Column(String, nullable=True)
+    is_suspended: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False,
+    )
+
+    suspended_reason: Mapped[Optional[str]] = mapped_column(
+        String,
+        nullable=True,
+    )
 
     # ---------------------------------------------------------
-    # 可擴充資料（例如：限定可管理哪些 event）
+    # 擴充設定（例如：限定可管理哪些 event）
     # ---------------------------------------------------------
-    config = Column(JSONB, default=lambda: {})
+    config: Mapped[dict] = mapped_column(
+        JSONB,
+        default=dict,
+    )
 
     # ---------------------------------------------------------
-    # 關聯
+    # Relationships
     # ---------------------------------------------------------
-    user = relationship("User", back_populates="memberships", lazy="selectin")
-    organizer = relationship("Organizer", back_populates="memberships", lazy="selectin")
+    user: Mapped["User"] = relationship(
+        back_populates="memberships",
+        lazy="selectin",
+    )
+
+    organizer: Mapped["Organizer"] = relationship(
+        back_populates="memberships",
+        lazy="selectin",
+    )

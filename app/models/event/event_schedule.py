@@ -1,12 +1,29 @@
 # app/models/event/event_schedule.py
 
-from sqlalchemy import Column, String, Integer, Boolean, ForeignKey, DateTime
-from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+# ---------------------------------------------------------
+# Standard Model Header (SQLAlchemy 2.0)
+# ---------------------------------------------------------
+from typing import List, Optional, TYPE_CHECKING
+from datetime import datetime
+from uuid import UUID as PyUUID
+
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+)
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID, JSONB
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base
 from app.models.base.base_model import BaseModel
-
+# ---------------------------------------------------------
+if TYPE_CHECKING:
+    from app.models.event.event import Event
+# ---------------------------------------------------------
 
 class EventSchedule(BaseModel, Base):
     """
@@ -19,40 +36,68 @@ class EventSchedule(BaseModel, Base):
     # ---------------------------------------------------------
     # 外鍵：Event
     # ---------------------------------------------------------
-    event_uuid = Column(
-        UUID(as_uuid=True),
+    event_uuid: Mapped[PyUUID] = mapped_column(
         ForeignKey("events.uuid", ondelete="CASCADE"),
         nullable=False,
-        index=True
+        index=True,
     )
 
-    # 場次名稱（上午場 / Day 1 / 台北場）
-    title = Column(String(255), nullable=False)
+    # ---------------------------------------------------------
+    # 場次基本資訊
+    # ---------------------------------------------------------
+    title: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+    )
 
-    # 內容描述（行程說明、注意事項…）
-    description = Column(String, nullable=True)
+    description: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+    )
 
-    # 開始 / 結束時間
-    start_at = Column(DateTime, nullable=True)
-    end_at = Column(DateTime, nullable=True)
+    # ---------------------------------------------------------
+    # 時間資訊
+    # ---------------------------------------------------------
+    start_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime,
+        nullable=True,
+    )
 
-    # 場地資訊
-    location = Column(String(255), nullable=True)
+    end_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime,
+        nullable=True,
+    )
 
-    # 可擴充欄位（地圖、講師資訊、配速分組、補給站資訊等）
-    config = Column(JSONB, default=lambda: {})
+    # ---------------------------------------------------------
+    # 場地與設定
+    # ---------------------------------------------------------
+    location: Mapped[Optional[str]] = mapped_column(
+        String(255),
+        nullable=True,
+    )
 
-    # 排序
-    sort_order = Column(Integer, default=0)
+    config: Mapped[dict] = mapped_column(
+        JSONB,
+        default=dict,
+    )
 
-    # 是否啟用顯示
-    is_enabled = Column(Boolean, default=True)
+    # ---------------------------------------------------------
+    # 狀態 / 排序
+    # ---------------------------------------------------------
+    sort_order: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+    )
+
+    is_enabled: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True,
+    )
 
     # ---------------------------------------------------------
     # Relationship
     # ---------------------------------------------------------
-    event = relationship(
-        "Event",
+    event: Mapped["Event"] = relationship(
         back_populates="schedules",
-        lazy="selectin"
+        lazy="selectin",
     )

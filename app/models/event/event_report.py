@@ -1,12 +1,29 @@
 # app/models/event/event_report.py
 
-from sqlalchemy import Column, ForeignKey
-from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+# ---------------------------------------------------------
+# Standard Model Header (SQLAlchemy 2.0)
+# ---------------------------------------------------------
+from typing import List, Optional, TYPE_CHECKING
+from datetime import datetime
+from uuid import UUID as PyUUID
+
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+)
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID, JSONB
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base
 from app.models.base.base_model import BaseModel
-
+# ---------------------------------------------------------
+if TYPE_CHECKING:
+    from app.models.event.event import Event
+# ---------------------------------------------------------
 
 class EventReportCache(BaseModel, Base):
     """
@@ -18,33 +35,28 @@ class EventReportCache(BaseModel, Base):
     __tablename__ = "event_report_cache"
 
     # ---------------------------------------------------------
-    # 外鍵：活動
+    # 外鍵：活動（一對一）
     # ---------------------------------------------------------
-    event_uuid = Column(
-        UUID(as_uuid=True),
+    event_uuid: Mapped[PyUUID] = mapped_column(
         ForeignKey("events.uuid", ondelete="CASCADE"),
         nullable=False,
-        index=True
+        index=True,
+        unique=True,   # ⭐ 一對一關係的關鍵
     )
 
     # ---------------------------------------------------------
-    # 報名統計資料（JSON 格式）
+    # 報名統計資料（JSON）
     # ---------------------------------------------------------
-    # 例如：
-    # {
-    #   "total": 120,
-    #   "by_price": {"early_bird": 45, "normal": 60, "vip": 15},
-    #   "by_schedule": {"day1": 70, "day2": 50},
-    #   "gender": {"male": 70, "female": 50},
-    #   "age": {"20-29": 30, "30-39": 50, "40+": 40}
-    # }
-    report_data = Column(JSONB, default=lambda: {})
+    report_data: Mapped[dict] = mapped_column(
+        JSONB,
+        default=dict,
+    )
 
     # ---------------------------------------------------------
     # Relationship
     # ---------------------------------------------------------
-    event = relationship(
+    event: Mapped["Event"] = relationship(
         "Event",
         back_populates="report_cache",
-        lazy="selectin"
+        lazy="selectin",
     )

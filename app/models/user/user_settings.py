@@ -1,11 +1,29 @@
 # app/models/user/user_settings.py
 
-from sqlalchemy import Column, Boolean, String, ForeignKey
-from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+# ---------------------------------------------------------
+# Standard Model Header (SQLAlchemy 2.0)
+# ---------------------------------------------------------
+from typing import List, Optional, TYPE_CHECKING
+from datetime import datetime
+from uuid import UUID as PyUUID
+
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+)
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID, JSONB
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base
 from app.models.base.base_model import BaseModel
+# ---------------------------------------------------------
+if TYPE_CHECKING:
+    from app.models.user.user import User
+# ---------------------------------------------------------
 
 
 class UserSettings(BaseModel, Base):
@@ -15,29 +33,65 @@ class UserSettings(BaseModel, Base):
 
     __tablename__ = "user_settings"
 
-    # 使用 uuid 作為 FK（與全系統一致）
-    user_uuid = Column(
-        UUID(as_uuid=True),
+    # ---------------------------------------------------------
+    # Foreign Key（1:1 User）
+    # ---------------------------------------------------------
+    user_uuid: Mapped[PyUUID] = mapped_column(
+        PG_UUID(as_uuid=True),
         ForeignKey("users.uuid", ondelete="CASCADE"),
         nullable=False,
         unique=True,
-        index=True
+        index=True,
     )
 
-    # --- 基本偏好設定 ---
-    dark_mode = Column(Boolean, default=False)
-    locale = Column(String, default="zh-Hant")
+    # ---------------------------------------------------------
+    # Basic preferences
+    # ---------------------------------------------------------
+    dark_mode: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+    )
 
-    # --- 通知設定 ---
-    notify_email = Column(Boolean, default=True)
-    notify_sms = Column(Boolean, default=False)
-    notify_marketing = Column(Boolean, default=False)
+    locale: Mapped[str] = mapped_column(
+        String,
+        default="zh-Hant",
+    )
 
-    # --- 前端 UI 偏好 ---
-    ui_preferences = Column(JSONB, default=lambda: {})
+    # ---------------------------------------------------------
+    # Notification preferences
+    # ---------------------------------------------------------
+    notify_email: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True,
+    )
 
-    # --- 其他可擴充設定 ---
-    config = Column(JSONB, default=lambda: {})
+    notify_sms: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+    )
 
-    # 回到 User 的關聯
-    user = relationship("User", back_populates="settings", lazy="selectin")
+    notify_marketing: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+    )
+
+    # ---------------------------------------------------------
+    # UI / extra config
+    # ---------------------------------------------------------
+    ui_preferences: Mapped[dict] = mapped_column(
+        JSONB,
+        default=dict,
+    )
+
+    config: Mapped[dict] = mapped_column(
+        JSONB,
+        default=dict,
+    )
+
+    # ---------------------------------------------------------
+    # Relationship
+    # ---------------------------------------------------------
+    user: Mapped["User"] = relationship(
+        back_populates="settings",
+        lazy="selectin",
+    )

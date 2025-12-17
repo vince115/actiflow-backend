@@ -1,72 +1,99 @@
 # app/models/auth/user_session.py
 
-from sqlalchemy import Column, String, DateTime, Boolean, ForeignKey
-from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import UUID
+# ---------------------------------------------------------
+# Standard Model Header (SQLAlchemy 2.0)
+# ---------------------------------------------------------
+from typing import List, Optional, TYPE_CHECKING
 from datetime import datetime
+from uuid import UUID as PyUUID
+
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+)
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID, JSONB
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base
 from app.models.base.base_model import BaseModel
-
-
+# ---------------------------------------------------------
+if TYPE_CHECKING:
+    from app.models.user.user import User
+    from app.models.auth.refresh_token import RefreshToken
+# ---------------------------------------------------------
 class UserSession(BaseModel, Base):
     """
     使用者登入 Session（多裝置登入管理）
-    - 紀錄每次 login 產生的 session
-    - 可用於：設備管理、移除 session、異常登入偵測、後台審計
+    - 每次 login 產生一筆
+    - 可用於：裝置管理、強制登出、異常登入偵測
     """
 
     __tablename__ = "user_sessions"
 
     # ---------------------------------------------------------
-    # 外鍵：User
+    # Foreign Key → User
     # ---------------------------------------------------------
-    user_uuid = Column(
-        UUID(as_uuid=True),
+    user_uuid: Mapped[PyUUID] = mapped_column(
+        PG_UUID(as_uuid=True),
         ForeignKey("users.uuid", ondelete="CASCADE"),
         nullable=False,
-        index=True
+        index=True,
     )
 
     # ---------------------------------------------------------
-    # Session 本體資訊
+    # Session 資訊
     # ---------------------------------------------------------
+    user_agent: Mapped[Optional[str]] = mapped_column(
+        String,
+        nullable=True,
+    )
 
-    # 例如：
-    # Chrome on macOS
-    # Mobile Safari on iPhone
-    user_agent = Column(String, nullable=True)
+    ip_address: Mapped[Optional[str]] = mapped_column(
+        String,
+        nullable=True,
+    )
 
-    # IP address
-    ip_address = Column(String, nullable=True)
-
-    # Refresh token 的 UUID（非 token 本體）
-    refresh_token_uuid = Column(
-        UUID(as_uuid=True),
+    # 對應 refresh token（不是 token 本體）
+    refresh_token_uuid: Mapped[Optional[PyUUID]] = mapped_column(
+        PG_UUID(as_uuid=True),
         ForeignKey("refresh_tokens.uuid", ondelete="SET NULL"),
         nullable=True,
-        index=True
+        index=True,
     )
 
-    # Session 是否仍有效（登出後改為 False）
-    is_active = Column(Boolean, default=True)
+    # 是否仍有效（登出 / 強制中斷）
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True,
+        nullable=False,
+    )
 
-    # 最後一次使用時間（refresh 時更新）
-    last_active_at = Column(DateTime, default=datetime.utcnow)
+    # 最近一次使用（refresh 時更新）
+    last_active_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.utcnow,
+        nullable=False,
+    )
 
-    # 自動登出時間（選用，看你是否要支援）
-    expires_at = Column(DateTime, nullable=True)
+    # Session 到期時間（選用）
+    expires_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime,
+        nullable=True,
+    )
 
     # ---------------------------------------------------------
     # Relationships
     # ---------------------------------------------------------
-    user = relationship(
-        "User",
+    user: Mapped["User"] = relationship(
         back_populates="sessions",
-        lazy="selectin"
+        lazy="selectin",
     )
 
-    refresh_token = relationship(
-        "RefreshToken",
-        lazy="selectin"
+    refresh_token: Mapped[Optional["RefreshToken"]] = relationship(
+        back_populates="user_sessions",
+        lazy="selectin",
     )

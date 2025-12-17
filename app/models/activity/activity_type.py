@@ -1,45 +1,98 @@
 # app/models/activity/activity_type.py
-from sqlalchemy import Column, String, Integer, Text, Boolean
-from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import JSONB
+
+# ---------------------------------------------------------
+# Standard Model Header (SQLAlchemy 2.0)
+# ---------------------------------------------------------
+from typing import List, Optional, TYPE_CHECKING
+from datetime import datetime
+from uuid import UUID as PyUUID
+
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+)
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID, JSONB
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base
 from app.models.base.base_model import BaseModel
-
+# ---------------------------------------------------------
+if TYPE_CHECKING:
+    from app.models.activity.activity_template import ActivityTemplate
+# ---------------------------------------------------------
 
 class ActivityType(BaseModel, Base):
     __tablename__ = "activity_types"
 
-    # 唯一 KEY（不可重複）
-    category_key = Column(String, unique=True, nullable=False, index=True)
+    # ---------------------------------------------------------
+    # 唯一分類 KEY（程式 / API 使用）
+    # ---------------------------------------------------------
+    category_key: Mapped[str] = mapped_column(
+        String,
+        unique=True,
+        nullable=False,
+        index=True,
+    )
 
-    # 顯示名稱
-    label = Column(String, nullable=False)
+    # ---------------------------------------------------------
+    # 顯示資訊
+    # ---------------------------------------------------------
+    label: Mapped[str] = mapped_column(
+        String,
+        nullable=False,
+    )
 
-    # 分組（可選，用於大型平台分類）
-    group = Column(String, nullable=True)
+    group: Mapped[Optional[str]] = mapped_column(
+        String,
+        nullable=True,
+    )
 
-    # 簡介（可選）
-    description = Column(Text, nullable=True)
+    description: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+    )
 
-    # UI 標籤色
-    color = Column(String, nullable=True)
+    # UI 標籤色 / icon
+    color: Mapped[Optional[str]] = mapped_column(
+        String,
+        nullable=True,
+    )
 
-    # Heroicons / SVG 名稱
-    icon = Column(String, nullable=True)
+    icon: Mapped[Optional[str]] = mapped_column(
+        String,
+        nullable=True,
+    )
 
-    # 排序
-    sort_order = Column(Integer, default=100)
+    # ---------------------------------------------------------
+    # 排序 / 狀態
+    # ---------------------------------------------------------
+    sort_order: Mapped[int] = mapped_column(
+        Integer,
+        default=100,
+    )
 
-    # 額外彈性設定
-    config = Column(JSONB, default=lambda: {})
+    is_enabled: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True,
+    )
 
-    # 是否啟用
-    is_enabled = Column(Boolean, default=True)
+    # ---------------------------------------------------------
+    # 彈性設定
+    # ---------------------------------------------------------
+    config: Mapped[dict] = mapped_column(
+        JSONB,
+        default=dict,
+    )
 
-    # 一種類型對多個模板
-    templates = relationship(
+    # ---------------------------------------------------------
+    # Relationships
+    # ---------------------------------------------------------
+    templates: Mapped[list["ActivityTemplate"]] = relationship(
         "ActivityTemplate",
         back_populates="activity_type",
-        lazy="selectin"
+        lazy="selectin",
     )

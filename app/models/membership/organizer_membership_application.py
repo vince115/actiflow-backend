@@ -1,4 +1,4 @@
-# app/models/membership/system_membership.py
+# app/models/membership/organizer_membership_application.py
 
 # ---------------------------------------------------------
 # Standard Model Header (SQLAlchemy 2.0)
@@ -14,7 +14,6 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
-    UniqueConstraint
 )
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -24,77 +23,96 @@ from app.models.base.base_model import BaseModel
 # ---------------------------------------------------------
 if TYPE_CHECKING:
     from app.models.user.user import User
+    from app.models.organizer.organizer import Organizer
 # ---------------------------------------------------------
 
 
-SYSTEM_ROLES = (
-    "super_admin",
-    "system_admin",
-    "site_admin",
-    "support",
-    "auditor",
+MEMBERSHIP_APPLICATION_STATUS = (
+    "pending",
+    "approved",
+    "rejected",
 )
 
 
-class SystemMembership(BaseModel, Base):
+class OrganizerMembershipApplication(BaseModel, Base):
     """
-    平台層級會員角色（非 Organizer）
-    - 企業級 RBAC
-    - 每個 User 僅允許一筆 system role
+    使用者申請加入 Organizer 的申請紀錄（Application / Process）
+
+    狀態流：
+    - pending   → 等待 Organizer 審核
+    - approved  → 建立 OrganizerMembership
+    - rejected  → 結案
     """
 
-    __tablename__ = "system_memberships"
-
-    __table_args__ = (
-        UniqueConstraint("user_uuid", name="uq_system_user"),
-    )
+    __tablename__ = "organizer_membership_applications"
 
     # ---------------------------------------------------------
-    # Foreign Key → User
+    # Foreign Keys
     # ---------------------------------------------------------
     user_uuid: Mapped[PyUUID] = mapped_column(
         PG_UUID(as_uuid=True),
-        ForeignKey("users.uuid", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    organizer_uuid: Mapped[PyUUID] = mapped_column(
+        PG_UUID(as_uuid=True),
         nullable=False,
         index=True,
     )
 
     # ---------------------------------------------------------
-    # Platform role
+    # Requested role
     # ---------------------------------------------------------
-    role: Mapped[str] = mapped_column(
+    requested_role: Mapped[str] = mapped_column(
         String,
-        nullable=False,
+        default="member",
+    )
+
+    # ---------------------------------------------------------
+    # Application status
+    # ---------------------------------------------------------
+    status: Mapped[str] = mapped_column(
+        String,
+        default="pending",
         index=True,
     )
 
     # ---------------------------------------------------------
-    # User status（非 BaseModel 的 is_active）
-    # ------------------------------------------------selector
+    # Review info
     # ---------------------------------------------------------
-    is_suspended: Mapped[bool] = mapped_column(
-        Boolean,
-        default=False,
-        nullable=False,
+    reviewed_by: Mapped[Optional[PyUUID]] = mapped_column(
+        PG_UUID(as_uuid=True),
+        nullable=True,
     )
 
-    suspended_reason: Mapped[Optional[str]] = mapped_column(
+    reviewed_by_role: Mapped[Optional[str]] = mapped_column(
+        String,
+        nullable=True,
+    )
+
+    rejection_reason: Mapped[Optional[str]] = mapped_column(
         String,
         nullable=True,
     )
 
     # ---------------------------------------------------------
-    # Config（平台權限、功能開關、UI 模式）
+    # Extra data
     # ---------------------------------------------------------
-    config: Mapped[dict] = mapped_column(
+    extra_data: Mapped[dict] = mapped_column(
         JSONB,
         default=dict,
     )
 
     # ---------------------------------------------------------
-    # Relationship
+    # Relationships
     # ---------------------------------------------------------
     user: Mapped["User"] = relationship(
-        back_populates="system_membership",
+        "User",
+        lazy="selectin",
+    )
+
+    organizer: Mapped["Organizer"] = relationship(
+        "Organizer",
         lazy="selectin",
     )

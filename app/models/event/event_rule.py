@@ -1,21 +1,33 @@
 # app/models/event/event_rule.py
 
-from sqlalchemy import Column, ForeignKey
-from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+# ---------------------------------------------------------
+# Standard Model Header (SQLAlchemy 2.0)
+# ---------------------------------------------------------
+from typing import List, Optional, TYPE_CHECKING
+from datetime import datetime
+from uuid import UUID as PyUUID
+
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+)
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID, JSONB
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base
 from app.models.base.base_model import BaseModel
-
-
+# ---------------------------------------------------------
+if TYPE_CHECKING:
+    from app.models.event.event import Event
+    from app.models.activity.activity_rule import ActivityRule
+# ---------------------------------------------------------
 class EventRule(BaseModel, Base):
     """
-    活動最終使用的規則（從 ActivityTemplateRule 複製而來）
-    用於：
-    - 活動參加條件
-    - 報名驗證
-    - 活動安全規範
-    - 年齡 / 性別 / 身份限制
+    活動最終使用的規則（從 ActivityRule 複製而來）
     """
 
     __tablename__ = "event_rules"
@@ -23,47 +35,50 @@ class EventRule(BaseModel, Base):
     # ---------------------------------------------------------
     # 外鍵：活動
     # ---------------------------------------------------------
-    event_uuid = Column(
-        UUID(as_uuid=True),
+    event_uuid: Mapped[PyUUID] = mapped_column(
         ForeignKey("events.uuid", ondelete="CASCADE"),
         nullable=False,
-        index=True
+        index=True,
     )
 
     # ---------------------------------------------------------
     # 外鍵：規則庫（複製來源）
     # ---------------------------------------------------------
-    rule_uuid = Column(
-        UUID(as_uuid=True),
+    rule_uuid: Mapped[Optional[PyUUID]] = mapped_column(
         ForeignKey("activity_rules.uuid", ondelete="SET NULL"),
         nullable=True,
-        index=True
+        index=True,
     )
 
     # ---------------------------------------------------------
     # 規則名稱 + 描述（複製靜態）
     # ---------------------------------------------------------
-    name = Column(String(255), nullable=False)
-    description = Column(String, nullable=True)
-
-    # ---------------------------------------------------------
-    # 規則設定（複製後可修改，不影響模板）
-    # e.g. {"age_min": 18, "age_max": 60}
-    # e.g. {"requires_medical": true}
-    # e.g. {"team_size_min": 2}
-    # ---------------------------------------------------------
-    config = Column(JSONB, default=lambda: {})
-
-    # ---------------------------------------------------------
-    # Relationship
-    # ---------------------------------------------------------
-    event = relationship(
-        "Event",
-        back_populates="rules",
-        lazy="selectin"
+    name: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
     )
 
-    activity_rule = relationship(
-        "ActivityRule",
-        lazy="selectin"
+    description: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
+    # ---------------------------------------------------------
+    # 規則設定（複製後可修改）
+    # ---------------------------------------------------------
+    config: Mapped[dict] = mapped_column(
+        JSONB,
+        default=dict,
+    )
+
+    # ---------------------------------------------------------
+    # Relationships
+    # ---------------------------------------------------------
+    event: Mapped["Event"] = relationship(
+        back_populates="rules",
+        lazy="selectin",
+    )
+
+    activity_rule: Mapped[Optional["ActivityRule"]] = relationship(
+        lazy="selectin",
     )

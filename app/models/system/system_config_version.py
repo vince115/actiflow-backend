@@ -1,12 +1,29 @@
 # app/models/system/system_config_version.py
 
-from sqlalchemy import Column, String, DateTime, ForeignKey
-from sqlalchemy.dialects.postgresql import JSONB, UUID
-from sqlalchemy.orm import relationship
+# ---------------------------------------------------------
+# Standard Model Header (SQLAlchemy 2.0)
+# ---------------------------------------------------------
+from typing import List, Optional, TYPE_CHECKING
 from datetime import datetime, timezone
+from uuid import UUID as PyUUID
+
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+)
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID, JSONB
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base
 from app.models.base.base_model import BaseModel
+# ---------------------------------------------------------
+if TYPE_CHECKING:
+    from app.models.user.user import User
+# ---------------------------------------------------------
 
 
 class SystemConfigVersion(BaseModel, Base):
@@ -18,33 +35,67 @@ class SystemConfigVersion(BaseModel, Base):
 
     __tablename__ = "system_config_versions"
 
-    # 顯示代碼（例如：CFG-20250101-001）
-    version_code = Column(String, unique=True, nullable=False, index=True)
-
-    # 哪個設定的版本（目標模型）
-    target_type = Column(String, nullable=False)  
-    # ex: "SystemSettings", "Platform"
-
-    target_uuid = Column(UUID(as_uuid=True), nullable=True)
-
-    # 操作者
-    user_uuid = Column(
-        UUID(as_uuid=True),
-        ForeignKey("users.uuid", ondelete="SET NULL"),
-        nullable=True
+    # ---------------------------------------------------------
+    # Version identity
+    # ---------------------------------------------------------
+    version_code: Mapped[str] = mapped_column(
+        String,
+        unique=True,
+        nullable=False,
+        index=True,
     )
 
-    user_email = Column(String, nullable=True)
+    # ---------------------------------------------------------
+    # Target reference
+    # ---------------------------------------------------------
+    target_type: Mapped[str] = mapped_column(
+        String,
+        nullable=False,
+    )
+    # ex: "SystemSettings", "Platform"
 
-    # 設定快照（完整內容）
-    config_snapshot = Column(JSONB, nullable=False)
+    target_uuid: Mapped[Optional[PyUUID]] = mapped_column(
+        nullable=True,
+    )
 
-    # 安全資訊
-    ip_address = Column(String, nullable=True)
-    user_agent = Column(String, nullable=True)
+    # ---------------------------------------------------------
+    # Operator info
+    # ---------------------------------------------------------
+    user_uuid: Mapped[Optional[PyUUID]] = mapped_column(
+        nullable=True,
+    )
 
-    created_at = Column(
+    user_email: Mapped[Optional[str]] = mapped_column(
+        String,
+        nullable=True,
+    )
+
+    # ---------------------------------------------------------
+    # Snapshot
+    # ---------------------------------------------------------
+    config_snapshot: Mapped[dict] = mapped_column(
+        JSONB,
+        nullable=False,
+    )
+
+    # ---------------------------------------------------------
+    # Security / Audit
+    # ---------------------------------------------------------
+    ip_address: Mapped[Optional[str]] = mapped_column(
+        String,
+        nullable=True,
+    )
+
+    user_agent: Mapped[Optional[str]] = mapped_column(
+        String,
+        nullable=True,
+    )
+
+    # ---------------------------------------------------------
+    # Timestamp
+    # ---------------------------------------------------------
+    created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
-        nullable=False
+        nullable=False,
     )

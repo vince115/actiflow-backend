@@ -1,46 +1,95 @@
 # app/models/activity/activity_template_field_option.py
 
-from sqlalchemy import Column, String, Integer, Boolean, ForeignKey
-from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+# ---------------------------------------------------------
+# Standard Model Header (SQLAlchemy 2.0)
+# ---------------------------------------------------------
+from typing import Optional, TYPE_CHECKING
+from uuid import UUID as PyUUID
+
+from sqlalchemy import (
+    Boolean,
+    ForeignKey,
+    Integer,
+    String,
+)
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID, JSONB
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base
 from app.models.base.base_model import BaseModel
+# ---------------------------------------------------------
+if TYPE_CHECKING:
+    from app.models.activity.activity_template_field import ActivityTemplateField
+# ---------------------------------------------------------
 
 
 class ActivityTemplateFieldOption(BaseModel, Base):
     __tablename__ = "activity_template_field_options"
 
-    # -----------------------------
-    # Foreign Key → TemplateField
-    # -----------------------------
-    field_uuid = Column(
-        UUID(as_uuid=True),
+    # ---------------------------------------------------------
+    # Foreign Key → ActivityTemplateField
+    # ---------------------------------------------------------
+    field_uuid: Mapped[PyUUID] = mapped_column(
+        PG_UUID(as_uuid=True),
         ForeignKey("activity_template_fields.uuid", ondelete="CASCADE"),
         nullable=False,
-        index=True
+        index=True,
     )
 
-    # -----------------------------
+    # ---------------------------------------------------------
     # Option Data
-    # -----------------------------
-    label = Column(String(255), nullable=False)    # 顯示文字，例如：男性、女性、其他
-    value = Column(String(255), nullable=True)     # 表單提交使用，ex: "M" / "F"
-    description = Column(String(500), nullable=True)
-    color = Column(String(50), nullable=True)      # 可選：提供色碼
-    icon = Column(String(255), nullable=True)      # 可選：icon 名稱
+    # ---------------------------------------------------------
+    label: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+    )
 
-    sort_order = Column(Integer, default=0)        # 排序（越小越前）
-    is_enabled = Column(Boolean, default=True)     # 用於前台是否顯示此選項
+    value: Mapped[Optional[str]] = mapped_column(
+        String(255),
+        nullable=True,
+    )
 
-    # JSON 設定（可擴充，例如：子選項、層級、條件顯示）
-    config = Column(JSONB, default=lambda: {})
+    description: Mapped[Optional[str]] = mapped_column(
+        String(500),
+        nullable=True,
+    )
 
-    # -----------------------------
+    color: Mapped[Optional[str]] = mapped_column(
+        String(50),
+        nullable=True,
+    )
+
+    icon: Mapped[Optional[str]] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+
+    sort_order: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        nullable=False,
+    )
+
+    is_enabled: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True,
+        nullable=False,
+    )
+
+    # ---------------------------------------------------------
+    # JSON Config
+    # ---------------------------------------------------------
+    config: Mapped[dict] = mapped_column(
+        JSONB,
+        default=dict,
+        server_default="{}",
+    )
+
+    # ---------------------------------------------------------
     # Relationship
-    # -----------------------------
-    field = relationship(
+    # ---------------------------------------------------------
+    field: Mapped["ActivityTemplateField"] = relationship(
         "ActivityTemplateField",
-        back_populates="options_rel",
-        lazy="selectin"
+        back_populates="options",
+        lazy="selectin",
     )

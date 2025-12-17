@@ -9,15 +9,16 @@ class Settings(BaseSettings):
     # === App Metadata ===
     APP_NAME: str = "ActiFlow Backend"
     VERSION: str = "0.1.0"
-    ENV: str = "dev"  # dev / prod / staging
+    ENV: str = "dev"  # dev / prod / test
+    
+    # === Database ===
+    DATABASE_URL: str = ""
+    TEST_DATABASE_URL: str = ""
 
     # === JWT ===
     JWT_SECRET: str = "change_me_please"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
-
-    # === Database ===
-    DATABASE_URL: str = ""
 
     # === CORS ===
     BACKEND_CORS_ORIGINS: list[str] = ["*"]
@@ -33,6 +34,12 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
     )
+    
+    @property
+    def db_url(self) -> str:
+        if self.ENV in ("dev", "test"):
+            return self.TEST_DATABASE_URL or self.DATABASE_URL
+        return self.DATABASE_URL
 
 
 @lru_cache()

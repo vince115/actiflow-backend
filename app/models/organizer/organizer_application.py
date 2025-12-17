@@ -1,13 +1,29 @@
 # app/models/organizer/organizer_application.py
 
-from sqlalchemy import Column, String, ForeignKey, DateTime
-from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+# ---------------------------------------------------------
+# Standard Model Header (SQLAlchemy 2.0)
+# ---------------------------------------------------------
+from typing import List, Optional, TYPE_CHECKING
 from datetime import datetime, timezone
+from uuid import UUID as PyUUID
+
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+)
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID, JSONB
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base
 from app.models.base.base_model import BaseModel
-
+# ---------------------------------------------------------
+if TYPE_CHECKING:
+    from app.models.user.user import User
+# ---------------------------------------------------------
 
 class OrganizerApplication(BaseModel, Base):
     """
@@ -18,45 +34,56 @@ class OrganizerApplication(BaseModel, Base):
     __tablename__ = "organizer_applications"
 
     # ---------------------------------------------------------
-    # 申請者
+    # Applicant
     # ---------------------------------------------------------
-    user_uuid = Column(
-        UUID(as_uuid=True),
+    user_uuid: Mapped[PyUUID] = mapped_column(
+        PG_UUID(as_uuid=True),
         ForeignKey("users.uuid", ondelete="CASCADE"),
         nullable=False,
-        index=True
+        index=True,
     )
-    user = relationship("User", lazy="selectin")
+
+    user: Mapped["User"] = relationship(
+        lazy="selectin",
+    )
 
     # ---------------------------------------------------------
-    # 申請內容（未建立 Organizer 前都先暫存）
+    # Application data (JSON snapshot before Organizer creation)
     # ---------------------------------------------------------
-    application_data = Column(
+    application_data: Mapped[dict] = mapped_column(
         JSONB,
-        default=lambda: {},
-        nullable=False
+        default=dict,
+        nullable=False,
     )
-    # 例如：
-    # {
-    #   "name": "...",
-    #   "email": "...",
-    #   "phone": "...",
-    #   "website": "...",
-    #   "description": "...",
-    #   "address": { ... }
-    # }
 
     # ---------------------------------------------------------
-    # 審核狀態
+    # Review status
     # ---------------------------------------------------------
-    status = Column(String, default="pending")  # pending / approved / rejected
-    reason = Column(String, nullable=True)
+    status: Mapped[str] = mapped_column(
+        String,
+        default="pending",  # pending / approved / rejected
+    )
 
-    submitted_at = Column(
+    reason: Mapped[Optional[str]] = mapped_column(
+        String,
+        nullable=True,
+    )
+
+    submitted_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc)
+        default=lambda: datetime.now(timezone.utc),
     )
-    reviewed_at = Column(DateTime(timezone=True), nullable=True)
 
-    reviewer_uuid = Column(UUID(as_uuid=True), nullable=True)
-    reviewer_role = Column(String, nullable=True)
+    reviewed_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    reviewer_uuid: Mapped[Optional[PyUUID]] = mapped_column(
+        nullable=True,
+    )
+
+    reviewer_role: Mapped[Optional[str]] = mapped_column(
+        String,
+        nullable=True,
+    )

@@ -1,46 +1,119 @@
 # app/models/base/base_model.py
 
-import uuid
-from datetime import datetime, timezone
-from sqlalchemy import Column, String, Boolean, DateTime, Integer
-from sqlalchemy.orm import declarative_mixin
-from sqlalchemy.dialects.postgresql import UUID
+from uuid import UUID as PyUUID, uuid4
+from datetime import datetime
+
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    Integer,
+    String,
+)
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+from sqlalchemy.orm import Mapped, declarative_mixin, mapped_column
 from sqlalchemy.sql import func
 
 
 @declarative_mixin
 class BaseModel:
     """
-    企業級 BaseModel（所有資料表共通欄位）
+    企業級 BaseModel（SQLAlchemy 2.x）
+    所有資料表共通欄位
     """
 
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-
-    uuid = Column(
-        UUID(as_uuid=True),
-        unique=True,
-        default=uuid.uuid4,
-        nullable=False,
-        index=True
+    # ---------------------------------------------------------
+    # Primary Key
+    # ---------------------------------------------------------
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        index=True,
+        autoincrement=True,
     )
 
-    # 狀態
-    is_active = Column(Boolean, default=True)
-    is_deleted = Column(Boolean, default=False)
+    uuid: Mapped[PyUUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        default=uuid4,
+        unique=True,
+        nullable=False,
+        index=True,
+    )
 
-    # 時間戳
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
-    deleted_at = Column(DateTime(timezone=True), nullable=True)
+    # ---------------------------------------------------------
+    # Status
+    # ---------------------------------------------------------
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True,
+    )
 
-    # 行為記錄
-    created_by = Column(UUID(as_uuid=True), nullable=True, index=True)
-    updated_by = Column(UUID(as_uuid=True), nullable=True, index=True)
-    deleted_by = Column(UUID(as_uuid=True), nullable=True, index=True)
+    is_deleted: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+    )
 
-    created_by_role = Column(String, nullable=True)
-    updated_by_role = Column(String, nullable=True)
-    deleted_by_role = Column(String, nullable=True)
+    # ---------------------------------------------------------
+    # Timestamps
+    # ---------------------------------------------------------
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
 
-    # 版本號（可選，用於 optimistic locking）
-    version = Column(Integer, default=1, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    # ---------------------------------------------------------
+    # Audit (Who did what)
+    # ---------------------------------------------------------
+    created_by: Mapped[PyUUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        nullable=True,
+        index=True,
+    )
+
+    updated_by: Mapped[PyUUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        nullable=True,
+        index=True,
+    )
+
+    deleted_by: Mapped[PyUUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        nullable=True,
+        index=True,
+    )
+
+    created_by_role: Mapped[str | None] = mapped_column(
+        String,
+        nullable=True,
+    )
+
+    updated_by_role: Mapped[str | None] = mapped_column(
+        String,
+        nullable=True,
+    )
+
+    deleted_by_role: Mapped[str | None] = mapped_column(
+        String,
+        nullable=True,
+    )
+
+    # ---------------------------------------------------------
+    # Optimistic Lock
+    # ---------------------------------------------------------
+    version: Mapped[int] = mapped_column(
+        Integer,
+        default=1,
+        nullable=False,
+    )

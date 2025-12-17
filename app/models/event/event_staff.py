@@ -1,11 +1,31 @@
 # app/models/event/event_staff.py
 
-from sqlalchemy import Column, String, Integer, Boolean, ForeignKey
-from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+# ---------------------------------------------------------
+# Standard Model Header (SQLAlchemy 2.0)
+# ---------------------------------------------------------
+from typing import List, Optional, TYPE_CHECKING
+from datetime import datetime
+from uuid import UUID as PyUUID
+
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+)
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID, JSONB
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base
 from app.models.base.base_model import BaseModel
+# ---------------------------------------------------------
+if TYPE_CHECKING:
+    from app.models.event.event import Event
+    from app.models.user.user import User
+# ---------------------------------------------------------
+
 
 
 class EventStaff(BaseModel, Base):
@@ -18,56 +38,79 @@ class EventStaff(BaseModel, Base):
     # ---------------------------------------------------------
     # 外鍵：活動
     # ---------------------------------------------------------
-    event_uuid = Column(
-        UUID(as_uuid=True),
+    event_uuid: Mapped[PyUUID] = mapped_column(
         ForeignKey("events.uuid", ondelete="CASCADE"),
         nullable=False,
-        index=True
+        index=True,
     )
 
     # ---------------------------------------------------------
-    # 可選：關聯到 User（若該工作人員有登入系統）
-    # 若活動邀請外部講師，無需綁 user_uuid
+    # 可選：關聯到 User
     # ---------------------------------------------------------
-    user_uuid = Column(
-        UUID(as_uuid=True),
+    user_uuid: Mapped[Optional[PyUUID]] = mapped_column(
         ForeignKey("users.uuid", ondelete="SET NULL"),
         nullable=True,
-        index=True
+        index=True,
     )
 
     # ---------------------------------------------------------
     # 工作人員基本資料
     # ---------------------------------------------------------
-    name = Column(String(255), nullable=False)     # 若無 user_uuid，仍需姓名
-    phone = Column(String(50), nullable=True)
-    email = Column(String(255), nullable=True)
-
-    # 職務（leader / assistant / staff / speaker / medical…）
-    role = Column(String(100), nullable=False, index=True)
-
-    # 職務說明（負責工作內容）
-    description = Column(String, nullable=True)
-
-    # 排序（名單順序）
-    sort_order = Column(Integer, default=0)
-
-    # 是否啟用
-    is_enabled = Column(Boolean, default=True)
-
-    # 可擴充欄位（分組、站點、裝備配置、權限等）
-    config = Column(JSONB, default=lambda: {})
-
-    # ---------------------------------------------------------
-    # Relationship
-    # ---------------------------------------------------------
-    event = relationship(
-        "Event",
-        back_populates="staffs",
-        lazy="selectin"
+    name: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
     )
 
-    user = relationship(
-        "User",
-        lazy="selectin"
+    phone: Mapped[Optional[str]] = mapped_column(
+        String(50),
+        nullable=True,
+    )
+
+    email: Mapped[Optional[str]] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+
+    # 職務（leader / assistant / staff / speaker / medical…）
+    role: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False,
+        index=True,
+    )
+
+    # 職務說明
+    description: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
+    # 排序
+    sort_order: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+    )
+
+    # 是否啟用
+    is_enabled: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True,
+    )
+
+    # 可擴充欄位
+    config: Mapped[dict] = mapped_column(
+        JSONB,
+        default=dict,
+    )
+
+    # ---------------------------------------------------------
+    # Relationships
+    # ---------------------------------------------------------
+    event: Mapped["Event"] = relationship(
+        back_populates="staffs",
+        lazy="selectin",
+    )
+
+    user: Mapped[Optional["User"]] = relationship(
+        back_populates="event_staffs",
+        lazy="selectin",
     )

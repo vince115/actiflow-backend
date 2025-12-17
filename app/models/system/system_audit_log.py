@@ -1,62 +1,137 @@
 # app/models/system/system_audit_log.py
 
-from sqlalchemy import Column, String, Text, DateTime, ForeignKey
-from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+# ---------------------------------------------------------
+# Standard Model Header (SQLAlchemy 2.0)
+# ---------------------------------------------------------
+from typing import List, Optional, TYPE_CHECKING
 from datetime import datetime, timezone
+from uuid import UUID as PyUUID
+
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+)
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID, JSONB
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base
 from app.models.base.base_model import BaseModel
+# ---------------------------------------------------------
+if TYPE_CHECKING:
+    from app.models.user.user import User
+# ---------------------------------------------------------
 
 
 class SystemAuditLog(BaseModel, Base):
     """
     系統層級操作日誌
-    - 用於記錄 super_admin / system_admin 對平台設定的操作
-    - 不應該綁定 Event / Submission（那是活動層級）
+    - 記錄 super_admin / system_admin / support 等對平台資源的操作
+    - 不綁定 Event / Submission（那是 domain audit）
     """
 
     __tablename__ = "system_audit_logs"
 
-    # 企業級外部代碼，用來追蹤紀錄
-    audit_code = Column(String, unique=True, nullable=False, index=True)
+    # ---------------------------------------------------------
+    # External audit code（企業級追蹤用）
+    # ---------------------------------------------------------
+    audit_code: Mapped[str] = mapped_column(
+        String,
+        unique=True,
+        nullable=False,
+        index=True,
+    )
 
-    # 操作者資訊
-    user_uuid = Column(
-        UUID(as_uuid=True),
+    # ---------------------------------------------------------
+    # Operator
+    # ---------------------------------------------------------
+    user_uuid: Mapped[Optional[PyUUID]] = mapped_column(
         ForeignKey("users.uuid", ondelete="SET NULL"),
         nullable=True,
-        index=True
+        index=True,
     )
-    user = relationship("User", lazy="selectin")
 
-    user_email = Column(String, nullable=False, index=True)
-    user_role = Column(String, nullable=True)  # super_admin, system_admin, support…
+    user: Mapped[Optional["User"]] = relationship(
+        lazy="selectin",
+    )
 
-    # 操作類型
-    action = Column(
+    user_email: Mapped[str] = mapped_column(
         String,
         nullable=False,
-        index=True
-    )  # ex: "update_system_settings", "create_platform", "modify_membership"
-
-    # 操作對象（紀錄哪個模型）
-    target_type = Column(String, nullable=True)  # ex: "Platform", "SystemSettings", "SystemMembership"
-    target_uuid = Column(UUID(as_uuid=True), nullable=True)
-
-    # 操作前後資料快照
-    before_data = Column(JSONB, nullable=True)
-    after_data = Column(JSONB, nullable=True)
-
-    # 安全資訊
-    ip_address = Column(String, nullable=True)
-    user_agent = Column(Text, nullable=True)
-
-    timestamp = Column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        nullable=False
+        index=True,
     )
 
-    # 額外資料
-    extra = Column(JSONB, default=lambda: {})
+    user_role: Mapped[Optional[str]] = mapped_column(
+        String,
+        nullable=True,
+    )
+    # ex: super_admin / system_admin / support / auditor
+
+    # ---------------------------------------------------------
+    # Action
+    # ---------------------------------------------------------
+    action: Mapped[str] = mapped_column(
+        String,
+        nullable=False,
+        index=True,
+    )
+    # ex: update_system_settings / create_platform / modify_membership
+
+    # ---------------------------------------------------------
+    # Target
+    # ---------------------------------------------------------
+    target_type: Mapped[Optional[str]] = mapped_column(
+        String,
+        nullable=True,
+    )
+    # ex: Platform / SystemSettings / SystemMembership
+
+    target_uuid: Mapped[Optional[PyUUID]] = mapped_column(
+        nullable=True,
+    )
+
+    # ---------------------------------------------------------
+    # Snapshot
+    # ---------------------------------------------------------
+    before_data: Mapped[Optional[dict]] = mapped_column(
+        JSONB,
+        nullable=True,
+    )
+
+    after_data: Mapped[Optional[dict]] = mapped_column(
+        JSONB,
+        nullable=True,
+    )
+
+    # ---------------------------------------------------------
+    # Security info
+    # ---------------------------------------------------------
+    ip_address: Mapped[Optional[str]] = mapped_column(
+        String,
+        nullable=True,
+    )
+
+    user_agent: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
+    # ---------------------------------------------------------
+    # Timestamp
+    # ---------------------------------------------------------
+    timestamp: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+    # ---------------------------------------------------------
+    # Extra
+    # ---------------------------------------------------------
+    extra: Mapped[dict] = mapped_column(
+        JSONB,
+        default=dict,
+    )

@@ -1,13 +1,29 @@
 # app/models/event/event_question.py
 
-from sqlalchemy import Column, String, Integer, Boolean, ForeignKey
-from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+# ---------------------------------------------------------
+# Standard Model Header (SQLAlchemy 2.0)
+# ---------------------------------------------------------
+from typing import List, Optional, TYPE_CHECKING
+from datetime import datetime
+from uuid import UUID as PyUUID
+
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+)
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID, JSONB
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base
 from app.models.base.base_model import BaseModel
-
-
+# ---------------------------------------------------------
+if TYPE_CHECKING:
+    from app.models.event.event import Event
+# ---------------------------------------------------------
 class EventQuestion(BaseModel, Base):
     """
     活動常見問題（FAQ）、注意事項、說明區塊
@@ -19,34 +35,55 @@ class EventQuestion(BaseModel, Base):
     # ---------------------------------------------------------
     # 外鍵：活動
     # ---------------------------------------------------------
-    event_uuid = Column(
-        UUID(as_uuid=True),
+    event_uuid: Mapped[PyUUID] = mapped_column(
         ForeignKey("events.uuid", ondelete="CASCADE"),
         nullable=False,
-        index=True
+        index=True,
     )
 
-    # 題目 / 問題
-    question = Column(String(500), nullable=False)
+    # ---------------------------------------------------------
+    # 問題內容
+    # ---------------------------------------------------------
+    question: Mapped[str] = mapped_column(
+        String(500),
+        nullable=False,
+    )
 
     # 答案（可長文字）
-    answer = Column(String, nullable=True)
+    answer: Mapped[Optional[str]] = mapped_column(
+        String,
+        nullable=True,
+    )
 
-    # 類型（可選）：faq / notice / rule / equipment / custom
-    question_type = Column(String(50), nullable=True)
+    # 類型（faq / notice / rule / equipment / custom）
+    question_type: Mapped[Optional[str]] = mapped_column(
+        String(50),
+        nullable=True,
+    )
 
     # 排序
-    sort_order = Column(Integer, default=0)
+    sort_order: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+    )
 
     # 顯示抑或隱藏
-    is_enabled = Column(Boolean, default=True)
+    is_enabled: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True,
+    )
 
-    # 可擴充資訊（例如：icon、樣式配置、自訂 metadata）
-    config = Column(JSONB, default=lambda: {})
+    # 可擴充資訊（icon、樣式、metadata）
+    config: Mapped[dict] = mapped_column(
+        JSONB,
+        default=dict,
+    )
 
+    # ---------------------------------------------------------
     # Relationship
-    event = relationship(
+    # ---------------------------------------------------------
+    event: Mapped["Event"] = relationship(
         "Event",
         back_populates="questions",
-        lazy="selectin"
+        lazy="selectin",
     )

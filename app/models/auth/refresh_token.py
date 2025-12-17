@@ -1,28 +1,90 @@
 # app/models/auth/refresh_token.py
 
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey
-from sqlalchemy.orm import relationship
+# ---------------------------------------------------------
+# Standard Model Header (SQLAlchemy 2.0)
+# ---------------------------------------------------------
+from typing import List, Optional, TYPE_CHECKING
 from datetime import datetime
+from uuid import UUID as PyUUID
+
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+)
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID, JSONB
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base
+from app.models.base.base_model import BaseModel
+# ---------------------------------------------------------
+if TYPE_CHECKING:
+    from app.models.user.user import User
+    from app.models.auth.user_session import UserSession
+# ---------------------------------------------------------
 
+class RefreshToken(BaseModel, Base):
+    """
+    Refresh Token（長期登入憑證）
+    - HttpOnly Cookie 使用
+    - 可撤銷（revoked）
+    - 可綁定 UserSession
+    """
 
-class RefreshToken(Base):
     __tablename__ = "refresh_tokens"
 
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
-    token = Column(String, unique=True, index=True)
-    user_agent = Column(String, nullable=True)
-    revoked = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    expired_at = Column(DateTime)
+    # ---------------------------------------------------------
+    # Foreign Key → User（⚠️ 使用 uuid，不用舊的 user_id）
+    # ---------------------------------------------------------
+    user_uuid: Mapped[PyUUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("users.uuid", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
 
-    user = relationship("User", back_populates="refresh_tokens")
+    # ---------------------------------------------------------
+    # Token data
+    # ---------------------------------------------------------
+    token: Mapped[str] = mapped_column(
+        String,
+        unique=True,
+        index=True,
+        nullable=False,
+    )
 
-    user_sessions = relationship(
+    user_agent: Mapped[Optional[str]] = mapped_column(
+        String,
+        nullable=True,
+    )
+
+    revoked: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False,
+    )
+
+    expired_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+    )
+
+    # ---------------------------------------------------------
+    # Relationships
+    # ---------------------------------------------------------
+    user: Mapped["User"] = relationship(
+        "User",
+        back_populates="refresh_tokens",
+        lazy="selectin",
+    )
+
+    user_sessions: Mapped[list["UserSession"]] = relationship(
         "UserSession",
         back_populates="refresh_token",
         lazy="selectin",
-        cascade="all, delete-orphan"
+        # 不要 delete-orphan，避免 refresh_token 斷開後 session 被 ORM 誤刪
+        cascade="save-update, merge",
     )

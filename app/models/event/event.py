@@ -1,11 +1,41 @@
 # app/models/event/event.py （活動主表）
 
-from sqlalchemy import Column, String, DateTime, ForeignKey, Text
-from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+# ---------------------------------------------------------
+# Standard Model Header (SQLAlchemy 2.0)
+# ---------------------------------------------------------
+from typing import List, Optional, TYPE_CHECKING
+from datetime import datetime
+from uuid import UUID as PyUUID
+
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+)
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID, JSONB
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base
 from app.models.base.base_model import BaseModel
+# ---------------------------------------------------------
+if TYPE_CHECKING:
+    from app.models.organizer.organizer import Organizer
+    from app.models.activity.activity_template import ActivityTemplate
+    from app.models.event.event_price import EventPrice
+    from app.models.event.event_field import EventField
+    from app.models.event.event_price import EventPrice
+    from app.models.event.event_media import EventMedia
+    from app.models.event.event_question import EventQuestion
+    from app.models.event.event_rule import EventRule
+    from app.models.event.event_schedule import EventSchedule
+    from app.models.event.event_staff import EventStaff
+    from app.models.event.event_report import EventReportCache
+    from app.models.event.event_ticket import EventTicket
+    from app.models.submission.submission import Submission
+# ---------------------------------------------------------
 
 class Event(BaseModel, Base):
     """
@@ -20,119 +50,146 @@ class Event(BaseModel, Base):
     # ---------------------------------------------------------
     # 業務用活動代號（外部顯示、不變）
     # ---------------------------------------------------------
-    event_code = Column(String, unique=True, nullable=False, index=True)
+    event_code: Mapped[str] = mapped_column(
+        String(100),
+        unique=True,
+        nullable=False,
+        index=True,
+    )
 
     # 活動狀態：draft / published / closed
-    status = Column(String, nullable=False, default="draft")
+    status: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        default="draft",
+        index=True,
+    )
 
     # ---------------------------------------------------------
     # 外鍵：主辦單位
     # ---------------------------------------------------------
-    organizer_uuid = Column(
-        UUID(as_uuid=True),
+    organizer_uuid: Mapped[PyUUID] = mapped_column(
         ForeignKey("organizers.uuid", ondelete="CASCADE"),
         nullable=False,
-        index=True
+        index=True,
     )
-    organizer = relationship("Organizer", back_populates="events", lazy="selectin")
+
+    organizer: Mapped["Organizer"] = relationship(
+        back_populates="events",
+        lazy="selectin",
+    )
 
     # ---------------------------------------------------------
     # 外鍵：所套用的活動模板
     # ---------------------------------------------------------
-    activity_template_uuid = Column(
-        UUID(as_uuid=True),
+    activity_template_uuid: Mapped[Optional[PyUUID]] = mapped_column(
+        PG_UUID(as_uuid=True),
         ForeignKey("activity_templates.uuid", ondelete="SET NULL"),
         nullable=True,
-        index=True
+        index=True,
     )
-    activity_template = relationship("ActivityTemplate", back_populates="events", lazy="selectin")
+
+    activity_template: Mapped[Optional["ActivityTemplate"]] = relationship(
+        back_populates="events",
+        lazy="selectin",
+    )
 
     # ---------------------------------------------------------
     # 活動基本資訊
     # ---------------------------------------------------------
-    name = Column(String, nullable=False)
-    description = Column(Text, nullable=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
-    start_date = Column(DateTime, nullable=False)
-    end_date = Column(DateTime, nullable=True)
+    start_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    end_date: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
     # 報名截止日
-    registration_deadline = Column(DateTime, nullable=True)
+    registration_deadline: Mapped[Optional[datetime]] = mapped_column(
+        DateTime,
+        nullable=True,
+    )
 
     # 活動其他設定
-    config = Column(JSONB, nullable=True)
+    config: Mapped[Optional[dict]] = mapped_column(
+        JSONB,
+        nullable=True,
+        default=dict,
+    )
 
 
     # ---------------------------------------------------------
     # Relationships
     # ---------------------------------------------------------
-    fields = relationship(
+    fields: Mapped[List["EventField"]] = relationship(
         "EventField",
         back_populates="event",
         lazy="selectin",
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
     )
 
-    submissions = relationship(
-        "Submission",
-        back_populates="event",
-        lazy="selectin",
-        cascade="all, delete"
-    )
-
-    media = relationship(
+    media: Mapped[List["EventMedia"]] = relationship(
         "EventMedia",
         back_populates="event",
         lazy="selectin",
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
     )
 
-    prices = relationship(
+    prices: Mapped[List["EventPrice"]] = relationship(
         "EventPrice",
         back_populates="event",
         lazy="selectin",
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
     )
 
-    questions = relationship(
+    questions: Mapped[List["EventQuestion"]] = relationship(
         "EventQuestion",
         back_populates="event",
         lazy="selectin",
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
     )
 
-    rules = relationship(
+    rules: Mapped[List["EventRule"]] = relationship(
         "EventRule",
         back_populates="event",
         lazy="selectin",
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
     )
 
-    schedules = relationship(
+    schedules: Mapped[List["EventSchedule"]] = relationship(
         "EventSchedule",
         back_populates="event",
         lazy="selectin",
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
     )
 
-    staffs = relationship(
+    staffs: Mapped[List["EventStaff"]] = relationship(
         "EventStaff",
         back_populates="event",
         lazy="selectin",
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
     )
 
-    report_cache = relationship(
+    report_cache: Mapped[Optional["EventReportCache"]] = relationship(
         "EventReportCache",
         back_populates="event",
         uselist=False,
         lazy="selectin",
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
     )
 
-    tickets = relationship(
+    tickets: Mapped[List["EventTicket"]] = relationship(
         "EventTicket",
         back_populates="event",
         lazy="selectin",
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
     )
+
+    submissions: Mapped[list["Submission"]] = relationship(
+        "Submission",
+        back_populates="event",
+        lazy="selectin",
+        cascade="all, delete-orphan",
+    )
+
+
+    
