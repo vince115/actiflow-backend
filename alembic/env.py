@@ -6,6 +6,8 @@ from sqlalchemy import pool
 from app.core.db import engine, Base
 import app.models  # 讓所有 model 被載入，填滿 Base.metadata
 
+print("ALEMBIC ENGINE URL =", engine.url)
+
 config = context.config
 
 if config.config_file_name is not None:

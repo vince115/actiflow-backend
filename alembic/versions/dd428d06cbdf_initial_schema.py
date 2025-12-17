@@ -579,7 +579,7 @@ def upgrade() -> None:
     sa.Column('token', sa.String(), nullable=False),
     sa.Column('user_agent', sa.String(), nullable=True),
     sa.Column('revoked', sa.Boolean(), nullable=False),
-    sa.Column('expired_at', sa.DateTime(), nullable=False),
+    sa.Column('expires_at', sa.DateTime(), nullable=False),
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('uuid', sa.UUID(), nullable=False),
     sa.Column('is_active', sa.Boolean(), nullable=False),
