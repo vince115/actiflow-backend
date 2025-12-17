@@ -67,9 +67,9 @@ class RefreshToken(BaseModel, Base):
         nullable=False,
     )
 
-    expired_at: Mapped[datetime] = mapped_column(
-        DateTime,
-        nullable=False,
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
     )
 
     # ---------------------------------------------------------

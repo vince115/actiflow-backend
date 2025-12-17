@@ -34,13 +34,14 @@ def unified_login(
 ):
     """
     統一登入 API
-    super_admin / organizer / user 都從這裡登入
+    - 只負責身份驗證
+    - 不處理角色、不處理平台
     """
 
     # 1. 查詢使用者
     user = user_crud.get_by_email(db, data.email)
 
-    # ⚠️ 不暴露「帳號是否存在」細節
+    # ⚠️ 不暴露帳號是否存在
     if not user or not user.password_hash:
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
@@ -48,16 +49,16 @@ def unified_login(
     if not verify_password(data.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    # 3. 建立 Access Token
+    # 3. 建立 Access Token（只放 identity）
     access_token = create_access_token({
         "sub": str(user.uuid),
-        "role": user.role
+        "type": "user",   # optional：未來擴充用
     })
 
-    # 4. 建立 Refresh Token（寫入 DB）
+    # 4. 建立 Refresh Token
     refresh_token_obj = refresh_token_crud.create_token(
         db=db,
-        user_id=user.id,
+        user_uuid=user.uuid,
         user_agent=request.headers.get("User-Agent", "unknown"),
     )
 
@@ -68,7 +69,7 @@ def unified_login(
         httponly=True,
         secure=settings.COOKIE_SECURE,
         samesite="lax",
-        max_age=60 * 15,  # 15 分鐘
+        max_age=60 * 15,
     )
 
     response.set_cookie(
@@ -77,15 +78,15 @@ def unified_login(
         httponly=True,
         secure=settings.COOKIE_SECURE,
         samesite="lax",
-        max_age=60 * 60 * 24 * 30,  # 30 天
+        max_age=60 * 60 * 24 * 30,
     )
 
-    # 6.  回傳登入成功（❌ 不回傳 token 本體）
+    # 6. 回傳登入成功（不含 token）
     return {
         "success": True,
         "user": {
             "uuid": str(user.uuid),
             "email": user.email,
-            "role": user.role,
         },
     }
+

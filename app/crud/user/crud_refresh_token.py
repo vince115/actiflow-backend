@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 from datetime import datetime, timedelta
 import secrets
+from uuid import UUID
 
 from app.crud.base.crud_base import CRUDBase
 from app.models.auth.refresh_token import RefreshToken
@@ -20,7 +21,7 @@ class CRUDRefreshToken(CRUDBase[RefreshToken]):
         self,
         db: Session,
         *,
-        user_id: int,
+        user_uuid: UUID,
         user_agent: str,
     ) -> RefreshToken:
         """
@@ -29,10 +30,10 @@ class CRUDRefreshToken(CRUDBase[RefreshToken]):
         token_str = secrets.token_urlsafe(48)
 
         token = RefreshToken(
-            user_id=user_id,
+            user_uuid=user_uuid,
             token=token_str,
             user_agent=user_agent,
-            is_revoked=False,
+            revoked=False,
             is_deleted=False,
             expires_at=datetime.utcnow() + timedelta(
                 days=settings.REFRESH_TOKEN_EXPIRE_DAYS
@@ -68,7 +69,7 @@ class CRUDRefreshToken(CRUDBase[RefreshToken]):
             db.query(self.model)
             .filter(
                 self.model.token == token,
-                self.model.is_revoked == False,
+                self.model.revoked == False,
                 self.model.is_deleted == False,
             )
         )

@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     JWT_SECRET: str = "change_me_please"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 30
+
+    COOKIE_SECURE: bool = False  # HTTPS only
 
     # === CORS ===
     BACKEND_CORS_ORIGINS: list[str] = ["*"]
