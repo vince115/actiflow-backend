@@ -1,135 +1,105 @@
-# app/core/rbac.py  ← Role-based access control 工具
+# app/core/rbac.py
 
+from typing import Iterable, Callable, Optional
 from fastapi import Depends, HTTPException, status
-from uuid import UUID
-from functools import wraps
 
-from sqlalchemy.orm import Session
-from typing import List, Callable
-
-from app.core.db import get_db
-from app.core.dependencies import get_current_identity
-from app.crud.membership.crud_system_membership import get_system_membership
-from app.crud.membership.crud_organizer_membership import get_organizer_membership
+from app.api.auth.dependencies import get_current_user
 
 
-# ============================================================
-# SUPER ADMIN
-# ============================================================
-def require_super_admin(func: Callable):
-    @wraps(func)
-    def wrapper(*args, db: Session = Depends(get_db), current_user=Depends(get_current_identity), **kwargs):
-        if current_user.role != "super_admin":
+# =====================================================
+# Internal helpers (pure logic)
+# =====================================================
+
+def _get_system_memberships(user: dict) -> list[dict]:
+    return [
+        m for m in user.get("memberships", [])
+        if m.get("type") == "system"
+    ]
+
+
+def _get_organizer_memberships(user: dict, organizer_uuid: Optional[str] = None) -> list[dict]:
+    memberships = [
+        m for m in user.get("memberships", [])
+        if m.get("type") == "organizer"
+    ]
+
+    if organizer_uuid:
+        memberships = [
+            m for m in memberships
+            if m.get("organizer_uuid") == organizer_uuid
+        ]
+
+    return memberships
+
+
+def _system_role_allowed(
+    user: dict,
+    allowed_roles: Iterable[str],
+) -> bool:
+    for m in _get_system_memberships(user):
+        if m.get("status") != "active":
+            continue
+        if m.get("role") in allowed_roles:
+            return True
+    return False
+
+
+def _organizer_role_allowed(
+    user: dict,
+    organizer_uuid: str,
+    allowed_roles: Iterable[str],
+) -> bool:
+    for m in _get_organizer_memberships(user, organizer_uuid):
+        if m.get("membership_role") in allowed_roles:
+            return True
+    return False
+
+
+# =====================================================
+# Public dependencies (FastAPI friendly)
+# =====================================================
+
+def require_system_role(
+    role: str | Iterable[str],
+) -> Callable:
+    """
+    Usage:
+        Depends(require_system_role("admin"))
+        Depends(require_system_role(["admin", "support"]))
+    """
+    allowed_roles = {role} if isinstance(role, str) else set(role)
+
+    def dependency(
+        current_user: dict = Depends(get_current_user),
+    ):
+        if not _system_role_allowed(current_user, allowed_roles):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Super admin role required"
+                detail="Insufficient system permissions",
             )
-        return func(*args, db=db, current_user=current_user, **kwargs)
+        return current_user
 
-    return wrapper
+    return dependency
 
-# ============================================================
-# ORGANIZER ROLE
-# ============================================================
-def require_organizer_member(
-    db: Session,
-    user,
-    organizer_uuid,
-    allowed_roles: list[str] | None = None,
+
+def require_organizer_role(
+    role: str | Iterable[str],
 ):
     """
-    檢查使用者是否為 organizer 成員
-    預設允許 owner / admin / member
+    Organizer-level RBAC.
+    Organizer UUID must be passed from path params.
     """
+    allowed_roles = {role} if isinstance(role, str) else set(role)
 
-    if allowed_roles is None:
-        allowed_roles = ["owner", "admin", "member"]
-
-    membership = get_organizer_membership(db, user.uuid, organizer_uuid)
-
-    if (
-        not membership
-        or membership.is_deleted
-        or not membership.is_active
-        or membership.role not in allowed_roles
+    def dependency(
+        organizer_uuid: str,
+        current_user: dict = Depends(get_current_user),
     ):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Organizer role required: {allowed_roles}",
-        )
-
-    return membership
-
-# ============================================================
-# PLATFORM ROLE (SystemMembership)
-# ------------------------------------------------------------
-# system_admin / support / auditor
-# ============================================================
-def require_platform_role(required_role: str):
-    def decorator(func: Callable):
-        @wraps(func)
-        def wrapper(*args, db: Session = Depends(get_db), current_user=Depends(get_current_identity), **kwargs):
-
-            membership = get_system_membership(db, current_user.uuid)
-
-            if not membership or membership.is_deleted or not membership.is_active:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Platform membership required"
-                )
-
-            if membership.role != required_role:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail=f"Platform role '{required_role}' required"
-                )
-
-            return func(*args, db=db, current_user=current_user, system_membership=membership, **kwargs)
-
-        return wrapper
-
-    return decorator
-
-
-# ============================================================
-# ORGANIZER ROLE
-# ------------------------------------------------------------
-# owner / admin / member
-# 需要綁定 organizer_uuid 來比對 membership
-# ============================================================
-def require_organizer_role(allowed_roles: List[str]):
-    def decorator(func: Callable):
-        @wraps(func)
-        def wrapper(
-            organizer_uuid: str,
-            *args,
-            db: Session = Depends(get_db),
-            current_user=Depends(get_current_identity),
-            **kwargs,
-        ):
-
-            membership = get_organizer_membership(db, current_user.uuid, organizer_uuid)
-
-            if (
-                not membership
-                or membership.is_deleted
-                or not membership.is_active
-                or membership.role not in allowed_roles
-            ):
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail=f"Organizer role required: {allowed_roles}"
-                )
-
-            return func(
-                organizer_uuid,
-                *args,
-                db=db,
-                current_user=current_user,
-                organizer_membership=membership,
-                **kwargs
+        if not _organizer_role_allowed(current_user, organizer_uuid, allowed_roles):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient organizer permissions",
             )
+        return current_user
 
-        return wrapper
-
-    return decorator
+    return dependency
