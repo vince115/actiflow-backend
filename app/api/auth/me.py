@@ -8,10 +8,14 @@ from app.core.jwt import decode_access_token
 
 from app.schemas.user.user_public import UserPublic
 from app.schemas.membership.organizer.organizer_membership_public import OrganizerMembershipPublic
+from app.schemas.membership.system.system_membership_public import SystemMembershipPublic
 
 from app.models.user.user import User
-from app.models.membership.organizer_membership import OrganizerMembership
 from app.models.organizer.organizer import Organizer
+from app.models.membership.organizer_membership import OrganizerMembership
+from app.models.membership.system_membership import SystemMembership
+
+
 
 router = APIRouter(tags=["Auth"])
 
@@ -82,11 +86,38 @@ def get_me(
     ]
 
     # -------------------------------------------------
+    # 4-1. 查詢 System Membership
+    # -------------------------------------------------
+    system_memberships = (
+        db.query(SystemMembership)
+        .filter(
+            SystemMembership.user_uuid == current_user.uuid,
+            SystemMembership.is_deleted == False,
+            SystemMembership.is_active == True,
+            SystemMembership.is_suspended == False,
+        )
+        .all()
+    )
+
+    system_memberships_public = [
+        SystemMembershipPublic(
+            role=m.role,
+            status="suspended" if m.is_suspended else (
+                "active" if m.is_active else "inactive"
+            ),
+        )
+        for m in system_memberships
+    ]
+
+    # -------------------------------------------------
     # 5. 回傳 UserPublic
     # -------------------------------------------------
     return UserPublic(
         uuid=current_user.uuid,
         email=current_user.email,
         name=current_user.name,
-        memberships=memberships_public,
+        memberships=[
+            *system_memberships_public,
+            *memberships_public,
+        ],
     )

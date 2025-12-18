@@ -1,11 +1,12 @@
 # app/schemas/membership/organizer_membership_public.py
 
-from pydantic import BaseModel
+from typing import Literal
+from app.schemas.membership.membership_base import MembershipBase
 
-class OrganizerMembershipPublic(BaseModel):
+class OrganizerMembershipPublic(MembershipBase):
+    type: Literal["organizer"] = "organizer"
+
     organizer_uuid: str
     organizer_name: str
-    membership_role: str    # owner / admin / editor / viewer / member
-    status: str             # active / suspended
 
-    model_config = {"from_attributes": True}
+    membership_role: str    # owner / admin / editor / viewer / member
