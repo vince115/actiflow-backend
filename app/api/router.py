@@ -49,6 +49,7 @@ from app.api.organizers.organizer.events import router as organizer_manage_event
 from app.api.organizers.organizer.members import router as organizer_members_router
 from app.api.organizers.organizer.applications import router as organizer_applications_router
 from app.api.organizers.organizer.profile import router as organizer_profile_router
+from app.api.organizers.organizer.activity_templates import router as organizer_activity_templates_router
 
 # Admin
 from app.api.organizers.admin.organizers import router as admin_organizers_router
@@ -129,9 +130,16 @@ api_router.include_router(
 api_router.include_router(organizer_applications_router)
 api_router.include_router(organizer_profile_router)
 
+
+
 api_router.include_router(admin_organizers_router)
 api_router.include_router(admin_organizer_members_router)
 api_router.include_router(admin_organizer_applications_router)
+api_router.include_router(
+    organizer_activity_templates_router,
+    prefix="/organizers/organizer",
+    tags=["Organizer - Activity Templates"],
+)
 
 # =======================
 # System
