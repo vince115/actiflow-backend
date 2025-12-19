@@ -107,7 +107,13 @@ api_router.include_router(public_organizers_router)
 
 api_router.include_router(organizer_dashboard_router)
 api_router.include_router(organizer_manage_events_router)
-api_router.include_router(organizer_members_router)
+# api_router.include_router(organizer_members_router)
+
+api_router.include_router(
+    organizer_members_router,
+    prefix="/organizers/{organizer_uuid}",
+    tags=["Organizer - Members"],
+)
 api_router.include_router(organizer_applications_router)
 api_router.include_router(organizer_profile_router)
 
