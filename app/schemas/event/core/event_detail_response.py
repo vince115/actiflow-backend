@@ -1,19 +1,18 @@
-# app/schemas/event/core/event_response.py
+# app/schemas/event/core/event_detail_response.py
 
 from typing import List, Optional
-from uuid import UUID
 
 from app.schemas.common.base import BaseSchema
 from app.schemas.event.core.event_base import EventBase
+from app.schemas.event.field.event_field_response import EventFieldResponse
 from app.schemas.activity_template.activity_template_response import ActivityTemplateResponse
 
 
-class EventResponse(EventBase, BaseSchema):
+class EventDetailResponse(BaseSchema, EventBase):
     """
-    Event 回傳用 Schema
-    - BaseSchema：uuid + audit 欄位
-    - EventBase：event 核心欄位
+    Event 詳細回傳（帶 fields）
     """
+    fields: List[EventFieldResponse] = []
     activity_template: Optional[ActivityTemplateResponse] = None
 
     model_config = {"from_attributes": True}

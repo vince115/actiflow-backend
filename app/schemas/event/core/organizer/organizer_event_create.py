@@ -1,0 +1,1 @@
+# app/schemas/event/core/organizer/organizer_event_create.py
