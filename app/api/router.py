@@ -113,7 +113,13 @@ api_router.include_router(
     prefix="/organizers/{organizer_uuid}",
     tags=["Organizer - Dashboard"],
 )
-api_router.include_router(organizer_manage_events_router)
+
+api_router.include_router(
+    organizer_manage_events_router,
+    prefix="/organizers/organizer",
+    tags=["Organizer - Events"],
+)
+
 # api_router.include_router(organizer_members_router)
 
 api_router.include_router(

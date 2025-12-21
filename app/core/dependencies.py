@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from typing import Optional, List
 from uuid import UUID
 
+from app.crud.membership.crud_system_membership import get_system_membership
+
 from app.core.db import get_db
 from app.core.jwt import decode_access_token
 
@@ -179,14 +181,18 @@ def resolve_current_organizer_context(
 # ============================================================
 def require_super_admin(
     identity: Identity = Depends(get_current_identity),
+    db: Session = Depends(get_db),
 ):
-    if identity.user.role != "super_admin":
+    system_membership = get_system_membership(db, identity.user.uuid)
+
+    if not system_membership or system_membership.role not in {"admin", "super_admin"}:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Super admin permission required",
+            detail="System admin permission required",
         )
 
-    return None
+    return system_membership
+
 
 
 # ============================================================
