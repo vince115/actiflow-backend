@@ -1,57 +1,51 @@
 # app/api/organizers/organizer/events.py
 # Organizer 後台 - Event CRUD（owner / admin）
+# Canonical Organizer API
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from uuid import UUID
+from datetime import datetime
 
 from app.core.db import get_db
-from app.core.dependencies import require_organizer_admin
+from app.core.dependencies import require_current_organizer_admin
 
-from app.schemas.event.core.event_create import EventCreate
+from app.schemas.event.core.event_create import OrganizerEventCreate
 from app.schemas.event.core.event_update import EventUpdate
 from app.schemas.event.core.event_response import EventResponse
 from app.schemas.common.pagination import PaginatedResponse
 
-from app.crud.event.crud_event import (
-    create_event_by_organizer,
-    get_event_by_uuid,
-    list_events_by_organizer,
-    update_event,
-    soft_delete_event,
-)
+from app.models.event.event import Event
+
 
 router = APIRouter(
-    prefix="/organizer/events",
+    prefix="/events",
     tags=["Organizer - Events"],
 )
 
 
 # -------------------------------------------------------------------
-# List organizer events
+# List events
 # -------------------------------------------------------------------
 @router.get("", response_model=PaginatedResponse[EventResponse])
-def list_organizer_events(
+def list_events(
     page: int = 1,
     page_size: int = 20,
     db: Session = Depends(get_db),
-    membership=Depends(require_organizer_admin),
+    membership=Depends(require_current_organizer_admin),
 ):
-    """
-    Organizer 後台：
-    取得該 organizer 的活動列表
-    """
-
-    query = list_events_by_organizer(
-        db=db,
-        organizer_uuid=membership.organizer_uuid,
-        query_only=True,  # 若你的 CRUD 支援，否則直接回 list
+    query = (
+        db.query(Event)
+        .filter(
+            Event.organizer_uuid == membership.organizer_uuid,
+            Event.is_deleted == False,
+        )
     )
 
     total = query.count()
     events = (
         query
-        .order_by(query.column_descriptions[0]["entity"].created_at.desc())
+        .order_by(Event.created_at.desc())
         .offset((page - 1) * page_size)
         .limit(page_size)
         .all()
@@ -70,99 +64,71 @@ def list_organizer_events(
 # -------------------------------------------------------------------
 @router.post("", response_model=EventResponse)
 def create_event(
-    data: EventCreate,
+    data: OrganizerEventCreate,
     db: Session = Depends(get_db),
-    membership=Depends(require_organizer_admin),
+    membership=Depends(require_current_organizer_admin),
 ):
-    """
-    Organizer 後台：
-    建立活動
-    """
-
-    event = create_event_by_organizer(
-        db=db,
+    event = Event(
+        **data.model_dump(),
         organizer_uuid=membership.organizer_uuid,
-        data=data,
-        creator_uuid=membership.user_uuid,
+        event_code=generate_event_code(),
+        created_by=membership.user_uuid,
+        created_by_role=membership.role,
     )
 
-    return EventResponse.model_validate(event)
-
-
-# -------------------------------------------------------------------
-# Get single event
-# -------------------------------------------------------------------
-@router.get("/{event_uuid}", response_model=EventResponse)
-def get_event(
-    event_uuid: UUID,
-    db: Session = Depends(get_db),
-    membership=Depends(require_organizer_admin),
-):
-    event = get_event_by_uuid(db, event_uuid)
-
-    if (
-        not event
-        or event.is_deleted
-        or event.organizer_uuid != membership.organizer_uuid
-    ):
-        raise HTTPException(status_code=404, detail="Event not found")
+    db.add(event)
+    db.commit()
+    db.refresh(event)
 
     return EventResponse.model_validate(event)
 
 
 # -------------------------------------------------------------------
-# Update event
+# Update event（PUT / partial update）
 # -------------------------------------------------------------------
 @router.put("/{event_uuid}", response_model=EventResponse)
-def update_event_handler(
+def update_event(
     event_uuid: UUID,
     data: EventUpdate,
     db: Session = Depends(get_db),
-    membership=Depends(require_organizer_admin),
+    membership=Depends(require_current_organizer_admin),
 ):
-    event = get_event_by_uuid(db, event_uuid)
-
-    if (
-        not event
-        or event.is_deleted
-        or event.organizer_uuid != membership.organizer_uuid
-    ):
-        raise HTTPException(status_code=404, detail="Event not found")
-
-    updated = update_event(
-        db=db,
-        event_uuid=event_uuid,
-        data=data,
-        updated_by=membership.user_uuid,
-        updated_by_role=membership.role,
+    event = (
+        db.query(Event)
+        .filter(
+            Event.uuid == event_uuid,
+            Event.organizer_uuid == membership.organizer_uuid,
+            Event.is_deleted == False,
+        )
+        .first()
     )
 
-    return EventResponse.model_validate(updated)
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    # 只更新有傳的欄位（partial update）
+    update_data = data.model_dump(exclude_unset=True)
+
+    for field, value in update_data.items():
+        setattr(event, field, value)
+
+    event.updated_by = membership.user_uuid
+    event.updated_by_role = membership.role
+    event.updated_at = datetime.utcnow()
+
+    db.add(event)
+    db.commit()
+    db.refresh(event)
+
+    return EventResponse.model_validate(event)
 
 
 # -------------------------------------------------------------------
-# Soft delete event
+# Utils
 # -------------------------------------------------------------------
-@router.delete("/{event_uuid}")
-def delete_event(
-    event_uuid: UUID,
-    db: Session = Depends(get_db),
-    membership=Depends(require_organizer_admin),
-):
-    event = get_event_by_uuid(db, event_uuid)
-
-    if (
-        not event
-        or event.is_deleted
-        or event.organizer_uuid != membership.organizer_uuid
-    ):
-        raise HTTPException(status_code=404, detail="Event not found")
-
-    soft_delete_event(
-        db=db,
-        event_uuid=event_uuid,
-        deleted_by=membership.user_uuid,
-        deleted_by_role=membership.role,
-    )
-
-    return {"deleted": True, "event_uuid": event_uuid}
+def generate_event_code() -> str:
+    """
+    事件代碼產生（簡易版）
+    例：EVT-20260105123045
+    """
+    return f"EVT-{datetime.utcnow():%Y%m%d%H%M%S}"
