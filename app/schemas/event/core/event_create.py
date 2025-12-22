@@ -31,6 +31,6 @@ class EventCreate(BaseModel):
 # Organizer scoped
 class OrganizerEventCreate(OrganizerEventBase):
     """
-    建立 Event（Organizer scoped）
+    建立 Event（Organizer scoped)
     """
     pass

@@ -1,7 +1,6 @@
 # app/crud/event/crud_event.py
 
 from sqlalchemy.orm import Session
-from fastapi import HTTPException
 from uuid import UUID
 
 from app.crud.base.crud_base import CRUDBase
@@ -9,6 +8,7 @@ from app.models.event.event import Event
 
 from app.schemas.event.core.event_create import OrganizerEventCreate
 from app.schemas.event.core.event_update import EventUpdate
+from app.schemas.event.core.event_status_update import EventStatus
 
 from app.crud.activity.crud_activity_template import activity_template_crud
 
@@ -141,6 +141,29 @@ def soft_delete_event_by_organizer(
     event.is_deleted = True
     event.deleted_by = deleter_uuid
     event.deleted_by_role = deleter_role
+
+    db.commit()
+    db.refresh(event)
+    return event
+
+
+# ============================================================
+# ⭐ NEW: update event status (publish / close)
+# ============================================================
+def update_event_status_by_organizer(
+    db: Session,
+    event_uuid: UUID,
+    new_status: EventStatus,
+    updater_uuid: UUID,
+    updater_role: str,
+):
+    event = event_crud.get_event_by_uuid(db, event_uuid)
+    if not event or event.is_deleted:
+        return None
+
+    event.status = new_status
+    event.updated_by = updater_uuid
+    event.updated_by_role = updater_role
 
     db.commit()
     db.refresh(event)
