@@ -13,10 +13,11 @@ from app.core.dependencies import require_current_organizer_admin
 from app.schemas.event.core.event_create import OrganizerEventCreate
 from app.schemas.event.core.event_update import EventUpdate
 from app.schemas.event.core.event_response import EventResponse
+from app.schemas.event.core.event_status_update import EventStatusUpdate
 from app.schemas.common.pagination import PaginatedResponse
 
 from app.models.event.event import Event
-
+from app.crud.event.crud_event import update_event_status_by_organizer
 
 router = APIRouter(
     prefix="/events",
@@ -122,6 +123,30 @@ def update_event(
 
     return EventResponse.model_validate(event)
 
+
+
+# -------------------------------------------------------------------
+# Publish / Close event (status only)
+# -------------------------------------------------------------------
+@router.patch("/{event_uuid}/publish", response_model=EventResponse)
+def publish_event(
+    event_uuid: UUID,
+    data: EventStatusUpdate,
+    db: Session = Depends(get_db),
+    membership=Depends(require_current_organizer_admin),
+):
+    event = update_event_status_by_organizer(
+        db,
+        event_uuid,
+        new_status=data.status,
+        updater_uuid=membership.user_uuid,
+        updater_role=membership.role,
+    )
+
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    return EventResponse.model_validate(event)
 
 # -------------------------------------------------------------------
 # Utils
