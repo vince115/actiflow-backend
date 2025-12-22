@@ -49,11 +49,13 @@ from app.api.organizers.organizer.events import router as organizer_manage_event
 from app.api.organizers.organizer.members import router as organizer_members_router
 from app.api.organizers.organizer.applications import router as organizer_applications_router
 from app.api.organizers.organizer.profile import router as organizer_profile_router
+from app.api.organizers.organizer.activity_templates import router as organizer_activity_templates_router
 
 # Admin
 from app.api.organizers.admin.organizers import router as admin_organizers_router
 from app.api.organizers.admin.organizer_members import router as admin_organizer_members_router
 from app.api.organizers.admin.organizer_applications import router as admin_organizer_applications_router
+from app.api.organizers.organizer.events_list import router as organizer_events_list_router
 
 # =======================
 # System
@@ -105,15 +107,45 @@ api_router.include_router(public_submissions_router)
 # =======================
 api_router.include_router(public_organizers_router)
 
-api_router.include_router(organizer_dashboard_router)
-api_router.include_router(organizer_manage_events_router)
-api_router.include_router(organizer_members_router)
+# api_router.include_router(organizer_dashboard_router)
+api_router.include_router(
+    organizer_dashboard_router,
+    prefix="/organizers/{organizer_uuid}",
+    tags=["Organizer - Dashboard"],
+)
+
+api_router.include_router(
+    organizer_manage_events_router,
+    prefix="/organizers/organizer",
+    tags=["Organizer - Events"],
+)
+
+# api_router.include_router(organizer_members_router)
+
+api_router.include_router(
+    organizer_events_list_router,
+    prefix="/organizers/{organizer_uuid}",
+    tags=["Organizer - Events List"],
+)
+
+api_router.include_router(
+    organizer_members_router,
+    prefix="/organizers/{organizer_uuid}",
+    tags=["Organizer - Members"],
+)
 api_router.include_router(organizer_applications_router)
 api_router.include_router(organizer_profile_router)
+
+
 
 api_router.include_router(admin_organizers_router)
 api_router.include_router(admin_organizer_members_router)
 api_router.include_router(admin_organizer_applications_router)
+api_router.include_router(
+    organizer_activity_templates_router,
+    prefix="/organizers/organizer",
+    tags=["Organizer - Activity Templates"],
+)
 
 # =======================
 # System

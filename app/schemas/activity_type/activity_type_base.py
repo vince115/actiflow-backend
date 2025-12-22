@@ -11,4 +11,4 @@ class ActivityTypeBase(BaseModel):
     color: Optional[str] = None        # 標籤顏色（可選）
     icon: Optional[str] = None         # Icon 名稱
     sort_order: int = 100              # 排序
-    config: Dict[str, Any] = {}        # 進階設定
+    config: Optional[Dict[str, Any]] = None    # 進階設定

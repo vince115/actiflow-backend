@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from uuid import UUID
 
 from app.core.db import get_db
-from app.core.dependencies import require_organizer_admin
+from app.core.rbac import require_organizer_role
 
 from app.crud.membership.crud_organizer_membership import (
     list_members_by_organizer,
@@ -28,7 +28,7 @@ from app.schemas.membership.organizer.organizer_membership_response import (
 )
 
 router = APIRouter(
-    prefix="/organizer/members",
+    prefix="/members",
     tags=["Organizer - Members"],
 )
 
@@ -36,18 +36,23 @@ router = APIRouter(
 # -------------------------------------------------------------------
 # List organizer members
 # -------------------------------------------------------------------
-@router.get("", response_model=list[OrganizerMembershipResponse])
+@router.get(
+    "",
+    response_model=list[OrganizerMembershipResponse],
+    dependencies=[Depends(require_organizer_role(["owner", "admin"]))],
+)
 def list_members(
+    organizer_uuid: str,
     db: Session = Depends(get_db),
-    membership=Depends(require_organizer_admin),
 ):
     """
     Organizer 後台：
     列出該 organizer 的所有成員
+    owner / admin only
     """
     members = list_members_by_organizer(
         db=db,
-        organizer_uuid=membership.organizer_uuid,
+        organizer_uuid=organizer_uuid,
     )
 
     return [
@@ -59,11 +64,15 @@ def list_members(
 # -------------------------------------------------------------------
 # Add member
 # -------------------------------------------------------------------
-@router.post("", response_model=OrganizerMembershipResponse)
+@router.post(
+    "",
+    response_model=OrganizerMembershipResponse,
+    dependencies=[Depends(require_organizer_role(["owner", "admin"]))],
+)
 def add_member(
+    organizer_uuid: str,
     data: OrganizerMembershipCreate,
     db: Session = Depends(get_db),
-    membership=Depends(require_organizer_admin),
 ):
     """
     Organizer 後台：
@@ -74,7 +83,7 @@ def add_member(
     exist = get_membership_by_user_and_organizer(
         db=db,
         user_uuid=data.user_uuid,
-        organizer_uuid=membership.organizer_uuid,
+        organizer_uuid=organizer_uuid,
     )
 
     if exist and not exist.is_deleted:
@@ -86,10 +95,8 @@ def add_member(
     new_member = create_membership(
         db=db,
         user_uuid=data.user_uuid,
-        organizer_uuid=membership.organizer_uuid,
+        organizer_uuid=organizer_uuid,
         role=data.role,
-        created_by=membership.user_uuid,
-        created_by_role=membership.role,
     )
 
     return OrganizerMembershipResponse.model_validate(new_member)
@@ -98,22 +105,26 @@ def add_member(
 # -------------------------------------------------------------------
 # Update member role
 # -------------------------------------------------------------------
-@router.put("/{user_uuid}", response_model=OrganizerMembershipResponse)
+@router.put(
+    "/{user_uuid}",
+    response_model=OrganizerMembershipResponse,
+    dependencies=[Depends(require_organizer_role(["owner", "admin"]))],
+)
 def update_member(
+    organizer_uuid: str,
     user_uuid: UUID,
     data: OrganizerMembershipUpdate,
     db: Session = Depends(get_db),
-    membership=Depends(require_organizer_admin),
 ):
     """
     Organizer 後台：
-    更新成員角色
+    更新成員角色（owner / admin）
     """
 
     target = get_membership_by_user_and_organizer(
         db=db,
         user_uuid=user_uuid,
-        organizer_uuid=membership.organizer_uuid,
+        organizer_uuid=organizer_uuid,
     )
 
     if not target or target.is_deleted:
@@ -123,8 +134,6 @@ def update_member(
         db=db,
         membership=target,
         data=data,
-        updated_by=membership.user_uuid,
-        updated_by_role=membership.role,
     )
 
     return OrganizerMembershipResponse.model_validate(updated)
@@ -133,11 +142,14 @@ def update_member(
 # -------------------------------------------------------------------
 # Remove member (soft delete)
 # -------------------------------------------------------------------
-@router.delete("/{user_uuid}")
+@router.delete(
+    "/{user_uuid}",
+    dependencies=[Depends(require_organizer_role(["owner", "admin"]))],
+)
 def delete_member(
+    organizer_uuid: str,
     user_uuid: UUID,
     db: Session = Depends(get_db),
-    membership=Depends(require_organizer_admin),
 ):
     """
     Organizer 後台：
@@ -147,14 +159,14 @@ def delete_member(
     target = get_membership_by_user_and_organizer(
         db=db,
         user_uuid=user_uuid,
-        organizer_uuid=membership.organizer_uuid,
+        organizer_uuid=organizer_uuid,
     )
 
     if not target or target.is_deleted:
         raise HTTPException(status_code=404, detail="Membership not found")
 
     # 不允許刪除自己（避免自殺）
-    if target.user_uuid == membership.user_uuid:
+    if target.user_uuid == user_uuid:
         raise HTTPException(
             status_code=400,
             detail="You cannot remove yourself",
@@ -163,8 +175,6 @@ def delete_member(
     soft_delete_membership(
         db=db,
         membership=target,
-        deleted_by=membership.user_uuid,
-        deleted_by_role=membership.role,
     )
 
     return {"deleted": True, "user_uuid": user_uuid}
@@ -173,28 +183,25 @@ def delete_member(
 # -------------------------------------------------------------------
 # Transfer organizer ownership
 # -------------------------------------------------------------------
-@router.post("/{user_uuid}/transfer-ownership")
+@router.post(
+    "/{user_uuid}/transfer-ownership",
+    dependencies=[Depends(require_organizer_role("owner"))],
+)
 def transfer_ownership(
+    organizer_uuid: str,
     user_uuid: UUID,
     db: Session = Depends(get_db),
-    membership=Depends(require_organizer_admin),
 ):
     """
     Organizer 後台：
     將 owner 轉移給指定成員
-    ※ 只有現任 owner 可以操作
+    ※ 只有 owner 可以操作
     """
-
-    if membership.role != "owner":
-        raise HTTPException(
-            status_code=403,
-            detail="Only owner can transfer ownership",
-        )
 
     target = get_membership_by_user_and_organizer(
         db=db,
         user_uuid=user_uuid,
-        organizer_uuid=membership.organizer_uuid,
+        organizer_uuid=organizer_uuid,
     )
 
     if not target or target.is_deleted:
@@ -202,10 +209,8 @@ def transfer_ownership(
 
     success = set_organizer_owner(
         db=db,
-        organizer_uuid=membership.organizer_uuid,
+        organizer_uuid=organizer_uuid,
         new_owner_user_uuid=user_uuid,
-        updated_by=membership.user_uuid,
-        updated_by_role=membership.role,
     )
 
     if not success:
@@ -216,6 +221,6 @@ def transfer_ownership(
 
     return {
         "message": "Ownership transferred",
-        "organizer_uuid": membership.organizer_uuid,
+        "organizer_uuid": organizer_uuid,
         "new_owner_user_uuid": user_uuid,
     }

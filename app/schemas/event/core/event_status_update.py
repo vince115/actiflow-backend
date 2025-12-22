@@ -5,7 +5,7 @@ from typing import Literal
 
 
 # 你如果已經有統一的 EventStatus enum/常數，這裡改成 import 即可
-EventStatus = Literal["draft", "published", "closed", "archived"]
+EventStatus = Literal["draft", "published", "closed"]
 
 
 class EventStatusUpdate(BaseModel):

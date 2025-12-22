@@ -1,5 +1,5 @@
 # app/api/organizers/organizer/profile.py
-# Organizer 個人資料（Profile）API
+# Organizer 個人資料（Profile / Me）API
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -17,47 +17,53 @@ from app.crud.membership.crud_system_membership import get_system_membership
 
 
 router = APIRouter(
-    prefix="/profile",
-    tags=["Organizer Profile"]
+    prefix="/me",
+    tags=["Organizer Profile"],
 )
 
 
 # -------------------------------------------------------------------
-# Get organizer profile (owner / admin / system_admin)
+# Get current organizer profile
+# owner / admin / system_admin
 # -------------------------------------------------------------------
-@router.get("/{organizer_uuid}", response_model=OrganizerResponse)
-def get_organizer_profile(
-    organizer_uuid: str,
+@router.get("", response_model=OrganizerResponse)
+def get_my_organizer_profile(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_identity),
 ):
-    organizer = organizer_crud.get_organizer_by_uuid(db, organizer_uuid)
+    """
+    取得目前登入者所屬的 Organizer 資料
+
+    - system_admin：回傳第一個關聯 organizer（或之後可擴充）
+    - organizer owner / admin：回傳所屬 organizer
+    """
+
+    # system admin：允許查看
+    system_mem = get_system_membership(db, current_user.uuid)
+    if system_mem and system_mem.role == "system_admin":
+        organizer = organizer_crud.get_first_active_organizer(db)
+        if not organizer:
+            raise HTTPException(status_code=404, detail="Organizer not found")
+        return organizer
+
+    # organizer member（owner / admin）
+    membership = organizer_crud.get_primary_membership_by_user(
+        db,
+        user_uuid=current_user.uuid,
+    )
+
+    if not membership:
+        raise HTTPException(
+            status_code=403,
+            detail="You are not a member of any organizer",
+        )
+
+    organizer = organizer_crud.get_organizer_by_uuid(
+        db,
+        membership.organizer_uuid,
+    )
 
     if not organizer or organizer.is_deleted:
         raise HTTPException(status_code=404, detail="Organizer not found")
-
-    # system_admin 可直接存取
-    system_mem = get_system_membership(db, current_user.uuid)
-    if system_mem and system_mem.role == "system_admin":
-        return organizer
-
-    # organizer owner / admin
-    mem = get_membership_by_user_and_organizer(
-        db,
-        current_user.uuid,
-        organizer_uuid,
-    )
-
-    if not mem:
-        raise HTTPException(
-            status_code=403,
-            detail="You are not a member of this organizer",
-        )
-
-    if mem.role not in ["owner", "admin"]:
-        raise HTTPException(
-            status_code=403,
-            detail="Organizer admin or owner permission required",
-        )
 
     return organizer

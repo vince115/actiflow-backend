@@ -6,27 +6,24 @@ from sqlalchemy.orm import Session
 from app.core.db import get_db
 from app.core.jwt import decode_access_token
 
-from app.schemas.user.user_public import UserPublic
-from app.schemas.membership.organizer.organizer_membership_public import OrganizerMembershipPublic
-from app.schemas.membership.system.system_membership_public import SystemMembershipPublic
-
 from app.models.user.user import User
 from app.models.organizer.organizer import Organizer
 from app.models.membership.organizer_membership import OrganizerMembership
 from app.models.membership.system_membership import SystemMembership
 
 
-
 router = APIRouter(tags=["Auth"])
 
-@router.get("/me", response_model=UserPublic)
+
+@router.get("/me")
 def get_me(
     request: Request,
     db: Session = Depends(get_db),
 ):
     """
-    回傳目前登入使用者資訊（UserPublic）
-    包含其所屬的 Organizer Memberships
+    回傳目前登入使用者資訊（Auth Context）
+    - 不使用 response_model（避免 Pydantic Union 問題）
+    - 回傳 system + organizer memberships（RBAC 使用）
     """
 
     # -------------------------------------------------
@@ -60,9 +57,23 @@ def get_me(
         raise HTTPException(status_code=404, detail="User not found")
 
     # -------------------------------------------------
-    # 4. 查詢 Organizer Memberships（你原本的邏輯，完整保留）
+    # 4. 查詢 System Memberships
     # -------------------------------------------------
-    memberships = (
+    system_memberships = (
+        db.query(SystemMembership)
+        .filter(
+            SystemMembership.user_uuid == current_user.uuid,
+            SystemMembership.is_deleted == False,
+            SystemMembership.is_active == True,
+            SystemMembership.is_suspended == False,
+        )
+        .all()
+    )
+
+    # -------------------------------------------------
+    # 5. 查詢 Organizer Memberships
+    # -------------------------------------------------
+    organizer_memberships = (
         db.query(OrganizerMembership)
         .join(
             Organizer,
@@ -76,48 +87,37 @@ def get_me(
         .all()
     )
 
-    memberships_public = [
-        OrganizerMembershipPublic(
-            organizer_uuid=m.organizer_uuid,
-            organizer_name=m.organizer.name,
-            membership_role=m.role,
-        )
-        for m in memberships
-    ]
-
     # -------------------------------------------------
-    # 4-1. 查詢 System Membership
+    # 6. 組合 memberships（純 dict，避免 Pydantic Union 雷）
     # -------------------------------------------------
-    system_memberships = (
-        db.query(SystemMembership)
-        .filter(
-            SystemMembership.user_uuid == current_user.uuid,
-            SystemMembership.is_deleted == False,
-            SystemMembership.is_active == True,
-            SystemMembership.is_suspended == False,
-        )
-        .all()
-    )
+    memberships: list[dict] = []
 
-    system_memberships_public = [
-        SystemMembershipPublic(
-            role=m.role,
-            status="suspended" if m.is_suspended else (
-                "active" if m.is_active else "inactive"
+    for m in system_memberships:
+        memberships.append({
+            "type": "system",
+            "role": m.role,
+            "status": (
+                "suspended"
+                if m.is_suspended
+                else "active" if m.is_active else "inactive"
             ),
-        )
-        for m in system_memberships
-    ]
+        })
+
+    for m in organizer_memberships:
+        memberships.append({
+            "type": "organizer",
+            "organizer_uuid": str(m.organizer_uuid),
+            "organizer_name": m.organizer.name,
+            "membership_role": m.role,
+        })
 
     # -------------------------------------------------
-    # 5. 回傳 UserPublic
+    # 7. 回傳 Auth Context
     # -------------------------------------------------
-    return UserPublic(
-        uuid=current_user.uuid,
-        email=current_user.email,
-        name=current_user.name,
-        memberships=[
-            *system_memberships_public,
-            *memberships_public,
-        ],
-    )
+    return {
+        "uuid": str(current_user.uuid),
+        "email": current_user.email,
+        "name": current_user.name,
+        "role": "user",
+        "memberships": memberships,
+    }

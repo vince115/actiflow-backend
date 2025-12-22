@@ -7,6 +7,11 @@ from datetime import datetime
 
 
 class EventUpdate(BaseModel):
+    """
+    更新 Event（前端 scoped）
+    """ 
+    activity_template_uuid: Optional[UUID] = None
+
     name: Optional[str] = None
     description: Optional[str] = None
 
@@ -15,7 +20,6 @@ class EventUpdate(BaseModel):
     registration_deadline: Optional[datetime] = None
 
     status: Optional[str] = None
-    activity_template_uuid: Optional[UUID] = None
     config: Optional[Dict[str, Any]] = None
 
     is_active: Optional[bool] = None

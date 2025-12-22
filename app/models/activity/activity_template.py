@@ -41,6 +41,17 @@ class ActivityTemplate(BaseModel, Base):
         index=True,
     )
 
+
+    # ---------------------------------------------------------
+    # 外鍵：組織
+    # ---------------------------------------------------------
+    organizer_uuid: Mapped[PyUUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("organizers.uuid", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
     # ---------------------------------------------------------
     # 外鍵：活動類型
     # ---------------------------------------------------------

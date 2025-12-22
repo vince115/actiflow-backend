@@ -1,14 +1,17 @@
+# app/schemas/organizer/dashboard.py
+
 from pydantic import BaseModel
-from typing import List
-
-from app.schemas.event.core.event_response import EventResponse
-from app.schemas.organizer_application.organizer_application_response import OrganizerApplicationResponse
+from uuid import UUID
 
 
-class DashboardResponse(BaseModel):
-    events_count: int
+class OrganizerDashboardStats(BaseModel):
     members_count: int
-    pending_applications_count: int
-    
-    recent_events: List[EventResponse]
-    recent_applications: List[OrganizerApplicationResponse]
+    events_count: int
+    active_events: int
+    submissions_last_7_days: int
+
+
+class OrganizerDashboardResponse(BaseModel):
+    organizer_uuid: UUID
+    organizer_name: str
+    stats: OrganizerDashboardStats
