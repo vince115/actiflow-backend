@@ -1,43 +1,46 @@
-#   app/api/events/public/submissions.py # 使用者送出報名
+# app/api/events/public/submissions.py
+# 使用者送出報名（Public Submission Create）
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from uuid import UUID
 
+from app.api.utils.submission_code import generate_submission_code
+
 from app.core.db import get_db
 from app.core.jwt import decode_access_token
 
 from app.models.event.event import Event
+from app.models.event.event_field import EventField
 from app.models.submission.submission import Submission
+from app.models.submission.submission_value import SubmissionValue
 
-from app.schemas.submission.submission_create import SubmissionCreate
+from app.schemas.submission.submission_public import SubmissionPublicCreate, SubmissionPublicCreateResponse
 from app.schemas.submission.submission_response import SubmissionResponse
 
 router = APIRouter(
-    prefix="/public/events/submissions",
+    prefix="/public/events",
     tags=["Public Event Submissions"],
 )
 
-# ============================================================
-# Create submission (public)
-# ============================================================
+
 @router.post(
     "/{event_uuid}/submissions",
-    response_model=SubmissionResponse,
+    response_model=SubmissionPublicCreateResponse,
 )
 def create_submission(
     event_uuid: UUID,
-    data: SubmissionCreate,
+    data: SubmissionPublicCreate,
     request: Request,
     db: Session = Depends(get_db),
 ):
     """
-    Public API：
-    使用者送出活動報名
+    Public API：使用者送出活動報名
 
-    - 不需要 organizer 權限
-    - 可匿名 or 已登入
-    - event 必須存在且可報名
+    行為說明：
+    - 建立 Submission（主檔）
+    - 使用 field_key → event_field_uuid 映射
+    - 同一 transaction 內建立 SubmissionValue（子表）
     """
 
     # --------------------------------------------------------
@@ -48,40 +51,87 @@ def create_submission(
         .filter(
             Event.uuid == event_uuid,
             Event.is_deleted == False,
-            Event.status == "published",  # 只允許已發布活動
+            Event.status == "published",
         )
         .first()
     )
 
     if not event:
-        raise HTTPException(status_code=404, detail="Event not found or not available")
+        raise HTTPException(
+            status_code=404,
+            detail="Event not found or not available",
+        )
 
     # --------------------------------------------------------
     # 2. 嘗試取得登入使用者（可選）
     # --------------------------------------------------------
     user_uuid = None
     token = request.cookies.get("access_token")
-
     if token:
         payload = decode_access_token(token)
-        if payload:
-            user_uuid = payload.get("sub")
+        user_uuid = payload.get("sub") if payload else None
 
     # --------------------------------------------------------
-    # 3. 建立 Submission
+    # 3. 建立 Submission（主檔）
     # --------------------------------------------------------
     submission = Submission(
+        submission_code=generate_submission_code(event.event_code),
         event_uuid=event_uuid,
         user_uuid=user_uuid,
         user_email=data.user_email,
         status="pending",
+        notes=data.notes,
         extra_data=data.extra_data,
         ip_address=request.client.host if request.client else None,
         user_agent=request.headers.get("user-agent"),
     )
 
     db.add(submission)
+    db.flush()  # 取得 submission.uuid
+
+    # --------------------------------------------------------
+    # 4. 準備 field_key → EventField 映射
+    # --------------------------------------------------------
+    fields = (
+        db.query(EventField)
+        .filter(
+            EventField.event_uuid == event_uuid,
+            EventField.is_deleted == False,
+            EventField.is_enabled == True,
+        )
+        .all()
+    )
+
+    field_map = {f.field_key: f for f in fields}
+
+    # --------------------------------------------------------
+    # 5. 建立 SubmissionValue（子表）
+    # --------------------------------------------------------
+    values: list[SubmissionValue] = []
+
+    for v in data.values:
+        field = field_map.get(v.field_key)
+        if not field:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid field_key: {v.field_key}",
+            )
+
+        values.append(
+            SubmissionValue(
+                submission_uuid=submission.uuid,
+                event_field_uuid=field.uuid,   # ✅ 正確 FK
+                field_key=field.field_key,     # ✅ 必填
+                value=v.value,                 # JSONB
+            )
+        )
+
+    db.add_all(values)
+
+    # --------------------------------------------------------
+    # 6. commit transaction
+    # --------------------------------------------------------
     db.commit()
     db.refresh(submission)
 
-    return SubmissionResponse.model_validate(submission)
+    return submission
