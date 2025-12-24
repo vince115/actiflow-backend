@@ -1,14 +1,15 @@
 # app/schemas/submission/submission_create.py
 
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from typing import List, Optional, Dict, Any
 from uuid import UUID
+
 from app.schemas.submission.submission_value import SubmissionValueCreate
 
 
 class SubmissionCreate(BaseModel):
     event_uuid: UUID
-    user_email: str
+    user_email: EmailStr
     user_uuid: Optional[UUID] = None
 
     values: List[SubmissionValueCreate]
