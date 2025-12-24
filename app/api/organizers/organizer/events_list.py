@@ -51,7 +51,8 @@ def list_organizer_events(
         items.append(
             OrganizerEventListItem(
                 uuid=event.uuid,
-                title=event.name,
+                event_code=event.event_code,   # ✅ 補齊（若實際欄位不同請對應）
+                name=event.name,               # ✅ 用 schema 定義的 name
                 status=event.status,
                 start_date=event.start_date.date() if event.start_date else None,
                 end_date=event.end_date.date() if event.end_date else None,
