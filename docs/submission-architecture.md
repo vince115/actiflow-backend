@@ -1,49 +1,64 @@
 # ActiFlow — Submission Architecture
 
-> 本文件定義 Submission 在 ActiFlow 系統中的資料模型分層、Schema 分工與 API 使用規則。
-> 目標是：**public / internal / response 完全解耦，各司其職**，避免 schema 混用與責任不清。
+本文件說明 ActiFlow 系統中 **Submission（報名資料）** 的整體架構設計，
+包含資料分層（public / internal / response）、API 與 schema 對應、
+以及報名流程中 Email 驗證的角色定位。
 
 ---
 
-## 一、Submission 的三個世界（核心概念）
+## 0. 本文件目的
 
-```
-Public World (匿名 / 使用者)
-└─ 送出報名表單
-   └─ field_key + value
-   └─ 最小回傳
-
-Internal World (系統 / 後台)
-└─ 真實資料結構
-   └─ uuid / FK / status / audit
-   └─ 完整 submission_values
-
-Response World (對外輸出)
-└─ 依角色裁切後的 view
-   └─ public response
-   └─ organizer / admin response
-```
+* 說清楚 Submission 是什麼、不包含什麼
+* 明確區分 Public / Internal / Response schema
+* 避免未來擴充（金流、審核、模板版本）時再次混亂
+* 作為後端、前端、未來維護者的共同契約文件
 
 ---
 
-## 二、Schema 分類總覽
+## 1. Submission 的三個世界（核心觀念）
 
-### 1️⃣ Public Submission（對外報名）
+Submission 在 ActiFlow 中同時存在於三個不同語境：
 
-**用途**：匿名或已登入使用者送出活動報名
-**設計原則**：
+| 世界       | 說明                      |
+| -------- | ----------------------- |
+| Public   | 未登入或一般使用者送出報名           |
+| Internal | 系統 / 後台建立或處理 Submission |
+| Response | 後台 / 管理者查詢與顯示           |
 
-* 不暴露 DB 結構
-* 不允許控制 status
-* 不使用 uuid
+**原則：三者永遠不共用同一個 schema**
 
-#### 檔案位置
+---
+
+## 2. Submission Lifecycle（狀態流程）
 
 ```
-app/schemas/submission/submission_public.py
+[填寫表單]
+     ↓
+pending                （已送出，尚未驗證）
+     ↓
+email_verified          （Email 驗證完成）
+     ↓
+confirmed               （報名成立）
+     ↓
+[後續流程：金流 / 審核 / 取消]
 ```
 
-### SubmissionPublicCreate（Public Create Input）
+### 設計原則
+
+* Public API 只能建立 `pending`
+* Email 驗證成功後，由系統更新狀態
+* 「送出表單」≠「報名成立」
+
+---
+
+## 3. Schema 分層設計
+
+### 3.1 Public Schemas（前台）
+
+**位置**
+`app/schemas/submission/submission_public.py`
+
+### SubmissionPublicCreate（前台送出）
 
 ```python
 class SubmissionPublicCreate(BaseModel):
@@ -53,81 +68,37 @@ class SubmissionPublicCreate(BaseModel):
     extra_data: Optional[Dict[str, Any]]
 ```
 
-### SubmissionValuePublicCreate
+設計重點：
+
+* 不暴露 `field_uuid`
+* 不允許指定 status
+* 不包含 created_by / role
+* 僅接受 `field_key + value`
+
+---
+
+### SubmissionPublic（前台查詢）
 
 ```python
-class SubmissionValuePublicCreate(BaseModel):
-    field_key: str
-    value: Any
+class SubmissionPublic(BaseModel):
+    submission_uuid: UUID
+    event_uuid: UUID
+    status: str
+    submitted_at: datetime | None
+    values: List[SubmissionValuePublic]
 ```
 
-> ✔ 前端只知道 field_key
-> ❌ 永遠不知道 event_field_uuid
+用途：
+
+* `/me/submissions`
+* 使用者查看自己的報名紀錄
 
 ---
 
-### SubmissionPublicCreateResponse（Public Create Output）
+## 3.2 Internal Schemas（系統 / 後台）
 
-**用途**：Public Create API 回傳（極簡）
-
-```json
-{
-  "uuid": "...",
-  "submission_code": "EVT-20251224-001",
-  "status": "pending"
-}
-```
-
-* ✔ 不回傳 values
-* ✔ 不回傳 event_field 結構
-
----
-
-## 三、Internal Submission（系統內部結構）
-
-**用途**：DB / CRUD / Flow / Admin
-
-### Model 結構
-
-```
-app/models/submission/
-├── submission.py
-├── submission_value.py
-└── submission_file.py
-```
-
-### Submission（主檔）
-
-* uuid
-* submission_code
-* event_uuid
-* user_uuid / user_email
-* status
-* notes / extra_data
-* audit fields
-
-### SubmissionValue
-
-* uuid
-* submission_uuid (FK)
-* event_field_uuid (FK)
-* field_key（冗餘但必要）
-* value (JSONB)
-* files（附件）
-
-> ⚠️ event_field_uuid **只存在於 internal**，public 世界永遠不知道
-
----
-
-## 四、Internal Create（系統 / 後台使用）
-
-### Schema 檔案
-
-```
-app/schemas/submission/submission_create.py
-```
-
-### SubmissionCreate
+**位置**
+`app/schemas/submission/submission_create.py`
 
 ```python
 class SubmissionCreate(BaseModel):
@@ -140,23 +111,18 @@ class SubmissionCreate(BaseModel):
     extra_data: Optional[Dict[str, Any]]
 ```
 
-* ✔ 可指定 status
-* ✔ 可指定 user_uuid
-* ❌ 不可用於 public API
+用途：
+
+* 系統流程
+* Admin / Organizer 建立 Submission
+* 批次匯入 / 測試用途
 
 ---
 
-## 五、Response Schemas（回傳視角）
+## 3.3 Response Schemas（後台回傳）
 
-### Organizer / Admin Response
-
-#### 檔案
-
-```
-app/schemas/submission/submission_response.py
-```
-
-### SubmissionResponse
+**位置**
+`app/schemas/submission/submission_response.py`
 
 ```python
 class SubmissionResponse(SubmissionBase):
@@ -166,46 +132,92 @@ class SubmissionResponse(SubmissionBase):
     values: List[SubmissionValueResponse]
 ```
 
-* ✔ 完整 submission + values
-* ✔ 後台使用
-* ❌ 不給 public
+用途：
+
+* Organizer / Admin 後台
+* 包含完整 DB 欄位與關聯資料
 
 ---
 
-## 六、API × Schema 對照表
+## 4. SubmissionValue 設計原則
 
-| API                                          | Input Schema           | Output Schema                  |
-| -------------------------------------------- | ---------------------- | ------------------------------ |
-| POST /public/events/{event_uuid}/submissions | SubmissionPublicCreate | SubmissionPublicCreateResponse |
-| GET /public/me/submissions（未來）               | –                      | SubmissionPublic               |
-| POST /organizer/submissions（未來）              | SubmissionCreate       | SubmissionResponse             |
-| GET /organizer/submissions                   | –                      | SubmissionResponse[]           |
-| GET /admin/submissions                       | –                      | SubmissionResponse[]           |
-
----
-
-## 七、核心鐵律（非常重要）
-
-### field_key → event_field_uuid 轉換規則
-
-> **此轉換只能發生在 API layer**
-
-* ❌ 不在 schema
-* ❌ 不在 model
-* ❌ 不在 frontend
-
-正確做法（範例）：
+### Public Create（前台）
 
 ```python
-field_map = {f.field_key: f for f in fields}
+class SubmissionValuePublicCreate(BaseModel):
+    field_key: str
+    value: Any
 ```
+
+### Internal / DB
+
+```python
+class SubmissionValue(BaseModel):
+    submission_uuid
+    event_field_uuid
+    field_key
+    value (JSONB)
+```
+
+### 鐵律（非常重要）
+
+**field_key → field_uuid 的轉換，只能發生在 API layer**
+
+* 不在 schema
+* 不在 model
+* 不在前端
+* 僅在 API
 
 ---
 
-## 八、結論
+## 5. API × Schema 對照表
 
-* Public / Internal / Response 已完全解耦
-* Schema 責任明確
-* 架構可長期擴充（Flow / Approval / Payment）
+| API                                            | 用途    | Request Schema         | Response Schema                |
+| ---------------------------------------------- | ----- | ---------------------- | ------------------------------ |
+| POST `/public/events/{event_uuid}/submissions` | 前台報名  | SubmissionPublicCreate | SubmissionPublicCreateResponse |
+| GET `/me/submissions`                          | 使用者查詢 | -                      | SubmissionPublic               |
+| POST `/admin/submissions`                      | 後台建立  | SubmissionCreate       | SubmissionResponse             |
+| GET `/admin/submissions/{uuid}`                | 後台查看  | -                      | SubmissionResponse             |
 
-**此 Submission 架構可作為 ActiFlow 長期穩定基礎。**
+---
+
+## 6. Email 驗證流程（流程層）
+
+### 為什麼 Email 驗證不屬於 Submission？
+
+* Submission 是資料
+* Email 驗證是流程控制
+
+### 責任分離
+
+| 項目       | 負責者        |
+| -------- | ---------- |
+| Token 產生 | 後端         |
+| Email 發送 | 後端         |
+| 點擊驗證     | 使用者        |
+| 狀態更新     | Verify API |
+
+### 建議 API
+
+* `POST /auth/email-verification/send`
+* `POST /auth/email-verification/verify`
+
+---
+
+## 7. Email 為什麼一定由後端發送？
+
+* 前端不能保存 SMTP / API Key
+* 防止偽造驗證信
+* 可隨時切換 Email Provider（SES / Resend / SendGrid）
+
+前端只負責觸發，後端負責發送。
+
+---
+
+## 8. 總結（定版規格）
+
+* Submission 有三個世界
+* Public / Internal / Response 永不混用
+* field_key 是 UX，uuid 是 DB
+* Email 驗證是流程，不是資料
+* 本文件為 Submission 架構定版文件
