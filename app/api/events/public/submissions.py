@@ -3,17 +3,22 @@
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
-from uuid import UUID
+from uuid import UUID, uuid4
+from datetime import datetime, timezone, timedelta
 
 from app.api.utils.submission_code import generate_submission_code
+from app.api.utils.email_sender import send_via_resend
+from app.api.utils.email_templates import verification_email_html
 
 from app.core.db import get_db
 from app.core.jwt import decode_access_token
+from app.core.config import settings
 
 from app.models.event.event import Event
 from app.models.event.event_field import EventField
 from app.models.submission.submission import Submission
 from app.models.submission.submission_value import SubmissionValue
+from app.models.auth.email_verification import EmailVerification
 
 from app.schemas.submission.submission_public import SubmissionPublicCreate, SubmissionPublicCreateResponse
 from app.schemas.submission.submission_response import SubmissionResponse
@@ -133,5 +138,42 @@ def create_submission(
     # --------------------------------------------------------
     db.commit()
     db.refresh(submission)
+
+
+    # ========================================================
+    # 7. 建立 EmailVerification + 發送驗證信（就在這裡）
+    # ========================================================
+
+    token = uuid4().hex
+
+    verification = EmailVerification(
+        ref_type="submission",
+        ref_uuid=submission.uuid,
+        email=submission.user_email,
+        token=token,
+        expires_at=datetime.now(timezone.utc) + timedelta(minutes=30),
+    )
+
+    db.add(verification)
+    db.commit()
+
+    verify_url = (
+        f"{settings.FRONTEND_BASE_URL}/verify-email"
+        f"?token={token}"
+    )
+
+    html = verification_email_html(verify_url)
+    send_via_resend(
+        to_email=submission.user_email,
+        subject="請驗證你的 Email",
+        html=html,
+    )
+
+    # if user and user.is_email_verified:
+    # 直接把 submission.status 推進
+    # submission.status = "email_verified"
+    # else:
+    # 建立 EmailVerification + 發信
+
 
     return submission
