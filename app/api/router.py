@@ -9,6 +9,11 @@ from app.api.auth.login import router as login_router
 from app.api.auth.refresh import router as refresh_router
 from app.api.auth.me import router as me_router
 from app.api.auth.logout import router as logout_router
+# =======================
+# Email
+# =======================
+from app.api.email.public import router as email_public_router
+from app.api.email.resend import router as email_resend_router
 
 # =======================
 # Events - Activity (Organizer Admin)
@@ -77,6 +82,12 @@ api_router.include_router(login_router, prefix="/auth", tags=["Auth"])
 api_router.include_router(refresh_router, prefix="/auth", tags=["Auth"])
 api_router.include_router(me_router, prefix="/auth", tags=["Auth"])
 api_router.include_router(logout_router, prefix="/auth", tags=["Auth"])
+
+# =======================
+# Email
+# =======================
+api_router.include_router(email_public_router, prefix="/public/email", tags=["Email"])
+api_router.include_router(email_resend_router, prefix="/public/email", tags=["Email"])
 
 # =======================
 # Events - Activity

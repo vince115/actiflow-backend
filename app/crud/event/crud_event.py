@@ -168,3 +168,31 @@ def update_event_status_by_organizer(
     db.commit()
     db.refresh(event)
     return event
+
+
+# ============================================================
+# ⭐ NEW: close event (Organizer scoped)
+# ============================================================
+def close_event_by_organizer(
+    db: Session,
+    event_uuid: UUID,
+    operator_uuid: UUID,
+    operator_role: str,
+) -> Event | None:
+    event = event_crud.get_event_by_uuid(db, event_uuid)
+    if not event or event.is_deleted:
+        return None
+
+    if event.status == "closed":
+        return event
+
+    if event.status != "published":
+        raise ValueError("Only published events can be closed")
+
+    event.status = "closed"
+    event.updated_by = operator_uuid
+    event.updated_by_role = operator_role
+
+    db.commit()
+    db.refresh(event)
+    return event

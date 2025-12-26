@@ -1,10 +1,16 @@
 # app/schemas/submission/submission_base.py
 
-from pydantic import BaseModel
-from typing import Optional, Dict, Any
+from pydantic import BaseModel, Field
+from typing import Optional, Dict, Any, Literal
 from uuid import UUID
 from datetime import datetime
 
+SubmissionStatus = Literal[
+    "pending",
+    "email_verified",
+    "paid",
+    "completed",
+]
 
 class SubmissionBase(BaseModel):
     submission_code: str
@@ -12,13 +18,13 @@ class SubmissionBase(BaseModel):
     user_email: str
     user_uuid: Optional[UUID] = None
 
-    status: str = "pending"
+    status: SubmissionStatus = "pending"
     status_reason: Optional[str] = None
     notes: Optional[str] = None
 
     ip_address: Optional[str] = None
     user_agent: Optional[str] = None
-    extra_data: Dict[str, Any] = {}
+    extra_data: Dict[str, Any] = Field(default_factory=dict)
 
     is_active: bool = True
     is_deleted: bool = False
@@ -36,3 +42,4 @@ class SubmissionBase(BaseModel):
     deleted_by_role: Optional[str] = None
 
     model_config = {"from_attributes": True}
+

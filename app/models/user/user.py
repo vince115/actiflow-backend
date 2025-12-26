@@ -3,19 +3,15 @@
 # ---------------------------------------------------------
 # Standard Model Header (SQLAlchemy 2.0)
 # ---------------------------------------------------------
-from typing import List, Optional, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING, List
 from datetime import datetime
 from uuid import UUID as PyUUID
 
 from sqlalchemy import (
     Boolean,
     DateTime,
-    ForeignKey,
-    Integer,
     String,
-    Text,
 )
-from sqlalchemy.dialects.postgresql import UUID as PG_UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base
@@ -35,173 +31,141 @@ if TYPE_CHECKING:
     from app.models.event.event_staff import EventStaff
 # ---------------------------------------------------------
 
+
 class User(BaseModel, Base):
+    """
+    系統使用者（帳號主體）
+
+    設計原則：
+    - User 只保存「狀態」
+    - 所有一次性流程（email 驗證、reset、session）都在獨立表
+    """
+
     __tablename__ = "users"
 
     # ---------------------------------------------------------
-    # Account info
+    # Identity
     # ---------------------------------------------------------
     email: Mapped[str] = mapped_column(
         String,
         unique=True,
         nullable=False,
         index=True,
-    )
-
-    name: Mapped[Optional[str]] = mapped_column(
-        String,
-        nullable=True,
-    )
-
-    phone: Mapped[Optional[str]] = mapped_column(
-        String,
-        nullable=True,
-        index=True,
-    )
-
-    avatar_url: Mapped[Optional[str]] = mapped_column(
-        String,
-        nullable=True,
+        comment="使用者登入 email",
     )
 
     # ---------------------------------------------------------
-    # Auth
+    # Email verification STATE（最終狀態）
     # ---------------------------------------------------------
-    auth_provider: Mapped[str] = mapped_column(
-        String,
-        default="local",
+    is_email_verified: Mapped[bool] = mapped_column(
+        Boolean,
         nullable=False,
+        default=False,
+        server_default="false",
+        comment="是否已完成 email 驗證",
     )
 
-    provider_id: Mapped[Optional[str]] = mapped_column(
-        String,
+    email_verified_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
         nullable=True,
+        comment="email 驗證完成時間",
     )
+
+    # ---------------------------------------------------------
+    # Account status
+    # ---------------------------------------------------------
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+        server_default="true",
+        comment="帳號是否啟用",
+    )
+
+    # ---------------------------------------------------------
+    # Relationships（保留完整系統關聯）
+    # ---------------------------------------------------------
+    profile: Mapped[Optional["UserProfile"]] = relationship(
+        back_populates="user",
+        uselist=False,
+        lazy="selectin",
+    )
+
+    system_memberships: Mapped[List["SystemMembership"]] = relationship(
+        back_populates="user",
+        lazy="selectin",
+    )
+
+    organizer_memberships: Mapped[List["OrganizerMembership"]] = relationship(
+        back_populates="user",
+        lazy="selectin",
+    )
+
+    submissions: Mapped[List["Submission"]] = relationship(
+        back_populates="user",
+        lazy="selectin",
+    )
+
+    refresh_tokens: Mapped[List["RefreshToken"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
+    #   EmailVerification 是 流程紀錄不再天然屬於 User
+    # email_verifications: Mapped[List["EmailVerification"]] = relationship(
+    #     back_populates="user",
+    #     cascade="all, delete-orphan",
+    #     lazy="selectin",
+    # )
 
     password_hash: Mapped[Optional[str]] = mapped_column(
         String,
         nullable=True,
+        comment="Password hash (for local auth)",
     )
 
-    is_email_verified: Mapped[bool] = mapped_column(
-        Boolean,
-        default=False,
-    )
-
-    email_verification_token: Mapped[Optional[str]] = mapped_column(
-        String,
-        nullable=True,
-    )
-
-    email_verified_at: Mapped[Optional[DateTime]] = mapped_column(
-        DateTime,
-        nullable=True,
-    )
-
-    last_login_at: Mapped[Optional[DateTime]] = mapped_column(
-        DateTime,
-        nullable=True,
-    )
-
-    # ---------------------------------------------------------
-    # Config
-    # ---------------------------------------------------------
-    config: Mapped[dict] = mapped_column(
-        JSONB,
-        default=dict,
-    )
-
-    # ---------------------------------------------------------
-    # Relationships
-    # ---------------------------------------------------------
-    profile: Mapped[Optional["UserProfile"]] = relationship(
-        "UserProfile",
-        back_populates="user",
-        uselist=False,
-        cascade="all, delete-orphan",
-        lazy="selectin",
-    )
-
-    system_membership: Mapped[Optional["SystemMembership"]] = relationship(
-        "SystemMembership",
-        back_populates="user",
-        uselist=False,
-        lazy="selectin",
-    )
-
-    memberships: Mapped[list["OrganizerMembership"]] = relationship(
-        "OrganizerMembership",
-        back_populates="user",
-        lazy="selectin",
-    )
-
-    submissions: Mapped[list["Submission"]] = relationship(
-        "Submission",
-        back_populates="user",
-        lazy="selectin",
-    )  
-
-    refresh_tokens: Mapped[list["RefreshToken"]] = relationship(
-        "RefreshToken",
+    password_resets: Mapped[List["PasswordReset"]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
         lazy="selectin",
     )
 
-    # ---------------------------------------------------------
-    # Email verification records (1:N)
-    # ---------------------------------------------------------
-    email_verifications: Mapped[list["EmailVerification"]] = relationship(
-        "EmailVerification",
+    sessions: Mapped[List["UserSession"]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
         lazy="selectin",
     )
 
-    # ---------------------------------------------------------
-    #  Password reset records (1:N)
-    # ---------------------------------------------------------
-    password_resets: Mapped[list["PasswordReset"]] = relationship(
-        "PasswordReset",
-        back_populates="user",
-        cascade="all, delete-orphan",
-        lazy="selectin",
-    )
-
-    # ---------------------------------------------------------
-    # User sessions (1:N)
-    # ---------------------------------------------------------
-    sessions: Mapped[list["UserSession"]] = relationship(
-        "UserSession",
-        back_populates="user",
-        cascade="all, delete-orphan",
-        lazy="selectin",
-    )
-
-    # ---------------------------------------------------------
-    # Auth logs (1:N)
-    # ---------------------------------------------------------
-    auth_logs: Mapped[list["AuthLog"]] = relationship(
-        "AuthLog",
+    auth_logs: Mapped[List["AuthLog"]] = relationship(
         back_populates="user",
         lazy="selectin",
     )
 
-    # ---------------------------------------------------------
-    # User Settings
-    # ---------------------------------------------------------
     settings: Mapped[Optional["UserSettings"]] = relationship(
-        "UserSettings",
         back_populates="user",
         uselist=False,
-        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
+    event_staffs: Mapped[List["EventStaff"]] = relationship(
+        back_populates="user",
         lazy="selectin",
     )
 
     # ---------------------------------------------------------
+    # Timestamp
+    # ---------------------------------------------------------
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=datetime.utcnow,
+        server_default="CURRENT_TIMESTAMP",
+    )
 
-    event_staffs: Mapped[list["EventStaff"]] = relationship(
-        "EventStaff",
-        back_populates="user",
-        lazy="selectin",
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
     )

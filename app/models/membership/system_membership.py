@@ -95,6 +95,6 @@ class SystemMembership(BaseModel, Base):
     # Relationship
     # ---------------------------------------------------------
     user: Mapped["User"] = relationship(
-        back_populates="system_membership",
+        back_populates="system_memberships",
         lazy="selectin",
     )

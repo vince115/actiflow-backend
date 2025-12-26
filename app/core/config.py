@@ -26,6 +26,11 @@ class Settings(BaseSettings):
     # === CORS ===
     BACKEND_CORS_ORIGINS: list[str] = ["*"]
 
+    # === Email ===
+    RESEND_API_KEY: str = ""
+    RESEND_FROM_EMAIL: str = ""
+    FRONTEND_BASE_URL: str = ""
+
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     def split_cors(cls, v):
         if isinstance(v, str):

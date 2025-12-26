@@ -103,11 +103,11 @@ class OrganizerMembership(BaseModel, Base):
     # Relationships
     # ---------------------------------------------------------
     user: Mapped["User"] = relationship(
-        back_populates="memberships",
-        lazy="selectin",
+        "User",
+        back_populates="organizer_memberships",
     )
 
     organizer: Mapped["Organizer"] = relationship(
+        "Organizer",
         back_populates="memberships",
-        lazy="selectin",
     )

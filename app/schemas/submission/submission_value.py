@@ -46,3 +46,11 @@ class SubmissionValuePublic(SubmissionValueBase):
 # ------------------------------------------------------------
 class SubmissionValueResponse(SubmissionValueBase):
     uuid: UUID
+
+
+# ------------------------------------------------------------
+# Public Create (前台 /me/submissions 顯示)
+# ------------------------------------------------------------
+class SubmissionValuePublicCreate(BaseModel):
+    field_key: str
+    value: Any

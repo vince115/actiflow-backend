@@ -3,47 +3,53 @@
 # ---------------------------------------------------------
 # Standard Model Header (SQLAlchemy 2.0)
 # ---------------------------------------------------------
-from typing import List, Optional,TYPE_CHECKING
 from datetime import datetime
 from uuid import UUID as PyUUID
 
 from sqlalchemy import (
+    String,
     Boolean,
     DateTime,
-    ForeignKey,
-    Integer,
-    String,
-    Text,
 )
-from sqlalchemy.dialects.postgresql import UUID as PG_UUID, JSONB
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base
 from app.models.base.base_model import BaseModel
-# ---------------------------------------------------------
-if TYPE_CHECKING:
-    from app.models.user.user import User
-# ---------------------------------------------------------
+
 
 class EmailVerification(BaseModel, Base):
     """
-    郵件驗證紀錄
+    Email 驗證紀錄（系統級）
+
+    用途：
+    - Submission Email Verify
+    - User Register Verify
+    - Password Reset
+    - 未來流程（invite / approve / share）
     """
 
     __tablename__ = "email_verifications"
 
     # ---------------------------------------------------------
-    # Foreign Key → User
+    # Reference（通用指向）
     # ---------------------------------------------------------
-    user_uuid: Mapped[PyUUID] = mapped_column(
-        PG_UUID(as_uuid=True),
-        ForeignKey("users.uuid", ondelete="CASCADE"),
+    ref_type: Mapped[str] = mapped_column(
+        String,
         nullable=False,
         index=True,
+        comment="驗證對象類型：submission / user / password_reset",
+    )
+
+    ref_uuid: Mapped[PyUUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        nullable=False,
+        index=True,
+        comment="對應資料 UUID",
     )
 
     # ---------------------------------------------------------
-    # Verification info
+    # Email & Token
     # ---------------------------------------------------------
     email: Mapped[str] = mapped_column(
         String,
@@ -54,18 +60,26 @@ class EmailVerification(BaseModel, Base):
     token: Mapped[str] = mapped_column(
         String,
         nullable=False,
+        unique=True,
+        index=True,
     )
 
+    # ---------------------------------------------------------
+    # Status
+    # ---------------------------------------------------------
     expires_at: Mapped[datetime] = mapped_column(
-        DateTime,
+        DateTime(timezone=True),
         nullable=False,
     )
 
-    # ---------------------------------------------------------
-    # Relationship
-    # ---------------------------------------------------------
-    user: Mapped["User"] = relationship(
-        "User",
-        back_populates="email_verifications",
-        lazy="selectin",
+    verified_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    is_used: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default="false",
     )
