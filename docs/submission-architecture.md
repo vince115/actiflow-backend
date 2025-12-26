@@ -1,3 +1,4 @@
+<!-- docs/submission-architecture.md -->
 # ActiFlow — Submission Architecture
 
 本文件說明 ActiFlow 系統中 **Submission（報名資料）** 的整體架構設計，
@@ -38,7 +39,11 @@ pending                （已送出，尚未驗證）
      ↓
 email_verified          （Email 驗證完成）
      ↓
-confirmed               （報名成立）
+paid                    （金流完成）
+     ↓
+completed               （報名成立）
+     ↓
+cancelled               （報名取消）
      ↓
 [後續流程：金流 / 審核 / 取消]
 ```
@@ -48,6 +53,34 @@ confirmed               （報名成立）
 * Public API 只能建立 `pending`
 * Email 驗證成功後，由系統更新狀態
 * 「送出表單」≠「報名成立」
+
+
+### Submission Status Lifecycle
+⚠ confirmed is a business concept, not a Submission status.
+
+pending
+→ email_verified
+→ paid
+→ completed
+
+All transitions are enforced by backend services.
+Direct status mutation is forbidden.
+
+### Cancellation (Out of Scope for Submission Status)
+
+Cancellation is not represented as a Submission status.
+
+A submission may be cancelled:
+- before payment
+- or after payment with refund logic
+
+Cancellation is handled via:
+- business rules
+- audit records
+- payment / refund workflows
+
+Submission status remains immutable once completed.
+
 
 ---
 
@@ -106,7 +139,6 @@ class SubmissionCreate(BaseModel):
     user_email: EmailStr
     user_uuid: Optional[UUID]
     values: List[SubmissionValueCreate]
-    status: Optional[str] = "pending"
     notes: Optional[str]
     extra_data: Optional[Dict[str, Any]]
 ```

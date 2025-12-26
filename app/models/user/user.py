@@ -119,6 +119,12 @@ class User(BaseModel, Base):
     #     lazy="selectin",
     # )
 
+    password_hash: Mapped[Optional[str]] = mapped_column(
+        String,
+        nullable=True,
+        comment="Password hash (for local auth)",
+    )
+
     password_resets: Mapped[List["PasswordReset"]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
